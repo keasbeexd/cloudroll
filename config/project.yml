@@ -1,0 +1,37 @@
+# XcodeGen spec. The .xcodeproj is generated (and git-ignored) so the project
+# can be edited without Xcode:
+#   xcodegen generate --spec config/project.yml --project .
+name: Cloudroll
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Cloudroll:
+    type: application
+    platform: iOS
+    sources:
+      - path: ../src
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Cloudroll
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        # Placeholder until the App Store bundle ID is registered.
+        PRODUCT_BUNDLE_IDENTIFIER: app.cloudroll.ios
+        TARGETED_DEVICE_FAMILY: "1"
+    scheme: {}

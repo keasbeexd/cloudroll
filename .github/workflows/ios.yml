@@ -1,0 +1,21 @@
+name: iOS build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate --spec config/project.yml --project .
+      - name: Build for simulator
+        run: >
+          xcodebuild -project Cloudroll.xcodeproj -scheme Cloudroll
+          -destination 'generic/platform=iOS Simulator'
+          -configuration Debug build CODE_SIGNING_ALLOWED=NO
