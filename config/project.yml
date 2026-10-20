@@ -33,5 +33,8 @@ targets:
       base:
         # Placeholder until the App Store bundle ID is registered.
         PRODUCT_BUNDLE_IDENTIFIER: app.cloudroll.ios
+        # XcodeGen writes info.path next to this spec but would reference it
+        # relative to the generated project, which lives in the repo root.
+        INFOPLIST_FILE: config/Info.plist
         TARGETED_DEVICE_FAMILY: "1"
     scheme: {}
