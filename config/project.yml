@@ -23,8 +23,10 @@ targets:
     sources:
       - path: ../src
         excludes: ["**/*.js"]
-      # Injected into the shell page at runtime, so it ships as a resource.
+      # Injected into the shell page at runtime, so they ship as resources.
       - path: ../src/WebView/shell-navigation.js
+        buildPhase: resources
+      - path: ../src/WebView/shell-diagnostics.js
         buildPhase: resources
     dependencies:
       - package: FlyingFox

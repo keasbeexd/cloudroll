@@ -10,6 +10,8 @@ struct GlassTabBar: View {
     let isCompact: Bool
     let onSelect: (NavState.Tab) -> Void
     let onExpand: () -> Void
+    /// Long press anywhere on the bar opens diagnostics for bug reports.
+    let onLongPress: () -> Void
 
     @Namespace private var selection
     @State private var taps: [String: Int] = [:]
@@ -28,6 +30,7 @@ struct GlassTabBar: View {
         .animation(.spring(response: 0.38, dampingFraction: 0.78), value: selected)
         .animation(.spring(response: 0.42, dampingFraction: 0.82), value: isCompact)
         .sensoryFeedback(.selection, trigger: selected)
+        .simultaneousGesture(LongPressGesture(minimumDuration: 1).onEnded { _ in onLongPress() })
     }
 
     private func button(for tab: NavState.Tab) -> some View {

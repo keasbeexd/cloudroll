@@ -82,10 +82,10 @@ final class WebNavigation {
         }
     }
 
-    /// The script that hides Memories' bar and reports navigation, from the app bundle.
-    static func script() throws -> String {
-        guard let url = Bundle.main.url(forResource: "shell-navigation", withExtension: "js") else {
-            throw ProxyError(reason: "shell-navigation.js is missing from the app bundle")
+    /// A script shipped in the app bundle (`shell-navigation`, `shell-diagnostics`).
+    static func bundledScript(_ name: String) throws -> String {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "js") else {
+            throw ProxyError(reason: "\(name).js is missing from the app bundle")
         }
         return try String(contentsOf: url, encoding: .utf8)
     }

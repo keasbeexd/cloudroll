@@ -11,6 +11,7 @@ struct SignedInView: View {
     @State private var toast: String?
     @State private var themeColor: Color?
     @State private var navigation = WebNavigation()
+    @State private var showsDiagnostics = false
     @State private var reloadToken = UUID()
 
     var body: some View {
@@ -21,6 +22,9 @@ struct SignedInView: View {
             .overlay(alignment: .bottom) { bottomOverlay }
             .task(id: reloadToken) { await prepare() }
             .task(id: toast) { await dismissToastLater() }
+            .sheet(isPresented: $showsDiagnostics) {
+                DiagnosticsView(source: source)
+            }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, case .shell = source else { return }
                 Task { await resumeShell() }
@@ -85,7 +89,8 @@ struct SignedInView: View {
                     selected: navigation.highlightedTab,
                     isCompact: navigation.state.collapsed == true,
                     onSelect: navigation.select,
-                    onExpand: navigation.expand
+                    onExpand: navigation.expand,
+                    onLongPress: { showsDiagnostics = true }
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -149,6 +154,8 @@ struct SignedInView: View {
             onSignOut()
         case .navState(let state):
             navigation.update(state)
+        case .log(let level, let message):
+            DiagnosticsLog.shared.add("page/\(level)", message)
         case .download(let href):
             Task { await download(href) }
         case .setShareBlobs(let json):

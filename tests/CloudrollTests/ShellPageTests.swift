@@ -172,3 +172,20 @@ final class ShareTests: XCTestCase {
         XCTAssertEqual(BridgeMessage(body: ["method": "setShareBlobs", "args": ["[]"]]), .setShareBlobs("[]"))
     }
 }
+
+final class DiagnosticsTests: XCTestCase {
+    @MainActor
+    func testLogKeepsTheNewestEntriesAndReportsMode() {
+        let log = DiagnosticsLog()
+        for i in 0..<305 { log.add("test", "entry \(i)") }
+
+        XCTAssertEqual(log.entries.count, 300)
+        XCTAssertEqual(log.entries.first?.message, "entry 5")
+        let report = log.report(appVersion: "0.1.24 (24)", source: .shell(URL(string: "http://127.0.0.1:47811/")!, webRoot: ""))
+        XCTAssertTrue(report.hasPrefix("Cloudroll 0.1.24 (24), mode: shell, 300 entries"))
+    }
+
+    func testBridgeParsesLogMessages() {
+        XCTAssertEqual(BridgeMessage(body: ["method": "log", "args": ["error", "boom"]]), .log(level: "error", message: "boom"))
+    }
+}
