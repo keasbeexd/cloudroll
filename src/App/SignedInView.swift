@@ -10,13 +10,13 @@ struct SignedInView: View {
     @State private var loadError: String?
     @State private var toast: String?
     @State private var themeColor: Color?
-    @State private var isDarkTheme: Bool?
     @State private var reloadToken = UUID()
 
     var body: some View {
         content
+            // Only the colour is mirrored: forcing a colour scheme here would also pin the
+            // web view's prefers-color-scheme and stop Memories following the system.
             .background((themeColor ?? Color(.systemBackground)).ignoresSafeArea())
-            .preferredColorScheme(isDarkTheme.map { $0 ? .dark : .light })
             .overlay(alignment: .bottom) { toastBanner }
             .task(id: reloadToken) { await prepare() }
             .task(id: toast) { await dismissToastLater() }
@@ -108,9 +108,8 @@ struct SignedInView: View {
 
     private func handle(_ message: BridgeMessage) {
         switch message {
-        case .setThemeColor(let css, let isDark):
+        case .setThemeColor(let css, _):
             themeColor = Color(cssHex: css)
-            isDarkTheme = isDark
         case .vibrate:
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         case .toast(let text):

@@ -74,6 +74,8 @@ struct LocalRequestHandler: HTTPHandler {
         switch router.route(method: request.method.rawValue, path: request.path, wantsDocument: wantsDocument) {
         case .shell:
             return await serveShell()
+        case .redirectToEntry:
+            return HTTPResponse(statusCode: HTTPStatusCode(302, phrase: "Found"), headers: [.location: router.entryPath])
         case .asset(let name):
             return try serveAsset(name)
         case .bridge:

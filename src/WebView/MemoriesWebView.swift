@@ -73,7 +73,7 @@ struct MemoriesWebView: UIViewRepresentable {
 
         private var entry: URL {
             switch source {
-            case .direct(let url), .shell(let url): url
+            case .direct(let url), .shell(let url, _): url
             }
         }
 
@@ -81,7 +81,7 @@ struct MemoriesWebView: UIViewRepresentable {
             switch source {
             case .direct:
                 loadDirect(in: webView)
-            case .shell(let url):
+            case .shell(let url, _):
                 guard let cookie = ShellHost.shared.authCookie else {
                     onLoadError(ProxyError(reason: "couldn't create the local session cookie"))
                     return
@@ -137,7 +137,11 @@ struct MemoriesWebView: UIViewRepresentable {
                 await UIApplication.shared.open(target)
                 return .cancel
             }
-            guard case .direct = source, action.targetFrame?.isMainFrame == true else { return .allow }
+            if case .shell(_, let webRoot) = source {
+                guard action.targetFrame?.isMainFrame == true else { return .allow }
+                return await shellPolicy(for: target, webRoot: webRoot)
+            }
+            guard action.targetFrame?.isMainFrame == true else { return .allow }
 
             if target.path.hasSuffix("/logout") {
                 onSignOut()
@@ -148,6 +152,25 @@ struct MemoriesWebView: UIViewRepresentable {
                 return .cancel
             }
             return .allow
+        }
+
+        /// Pages the local server would refuse (other Nextcloud apps, settings) open on
+        /// the real server in Safari, so the shell never shows a dead end.
+        private func shellPolicy(for target: URL, webRoot: String) async -> WKNavigationActionPolicy {
+            switch LocalRouter(webRoot: webRoot).route(method: "GET", path: target.path, wantsDocument: true) {
+            case .shell, .redirectToEntry:
+                return .allow
+            case .asset, .bridge, .proxy, .notFound:
+                guard var components = URLComponents(url: credential.server, resolvingAgainstBaseURL: false) else {
+                    return .cancel
+                }
+                components.path = target.path
+                components.query = target.query
+                if let serverPage = components.url {
+                    await UIApplication.shared.open(serverPage)
+                }
+                return .cancel
+            }
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError error: Error) {
