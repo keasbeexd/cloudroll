@@ -9,7 +9,7 @@ Every push to `main` builds an unsigned IPA and encrypts it with [age](https://g
 - The workflow only has the public key, so GitHub stores no secret.
 - The matching private key lives only on the maintainer's machine at `~/.config/cloudroll/ipa-key.txt`.
 - Anyone can download the artifact, but it can't be decrypted without that key.
-- `scripts/fetch-ipa.sh` deletes the artifact from GitHub right after decrypting it. Artifacts that never get fetched expire after 1 day.
+- `scripts/fetch-ipa.sh` deletes the fetched artifact, and any older unfetched ones, from GitHub right after decrypting. Artifacts that never get fetched expire after 1 day.
 
 Back the key up somewhere safe. If it's lost, create a new one with `age-keygen` and put its public key into `IPA_RECIPIENT` in `.github/workflows/ios.yml`.
 
