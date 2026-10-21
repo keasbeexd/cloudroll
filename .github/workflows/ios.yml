@@ -14,8 +14,24 @@ jobs:
         run: brew install xcodegen
       - name: Generate project
         run: xcodegen generate --spec config/project.yml --project .
-      - name: Build for simulator
-        run: >
-          xcodebuild -project Cloudroll.xcodeproj -scheme Cloudroll
-          -destination 'generic/platform=iOS Simulator'
-          -configuration Debug build CODE_SIGNING_ALLOWED=NO
+      - name: Run unit tests
+        run: |
+          # Simulator names change with each runner image, so pick any available iPhone.
+          DEVICE_ID=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | startswith("iPhone"))][0].udid')
+          if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
+            echo "No iPhone simulator available on this runner" >&2
+            exit 1
+          fi
+          xcodebuild -project Cloudroll.xcodeproj -scheme Cloudroll \
+            -destination "id=$DEVICE_ID" test CODE_SIGNING_ALLOWED=NO
+      # Unsigned device build for sideloading with SideStore/AltStore, which
+      # re-sign it with the user's own Apple ID.
+      - name: Build unsigned IPA
+        run: |
+          xcodebuild -project Cloudroll.xcodeproj -scheme Cloudroll \
+            -destination 'generic/platform=iOS' -configuration Release \
+            -derivedDataPath build build CODE_SIGNING_ALLOWED=NO
+          mkdir -p ipa/Payload
+          cp -R build/Build/Products/Release-iphoneos/Cloudroll.app ipa/Payload/
+          (cd ipa && zip -qry ../Cloudroll-unsigned.ipa Payload)
