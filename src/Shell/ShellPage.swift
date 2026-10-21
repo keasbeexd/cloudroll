@@ -35,8 +35,9 @@ enum ShellPage {
         <html>
         <head\(userAttribute)\(tokenAttribute)>
             <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+            <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
             <title>Memories</title>
+            <style>\(nativeFeel)</style>
             \(stylesheets)
             <script src="\(LocalRouter.assetPrefix)memories-l10n.js"></script>
         </head>
@@ -58,6 +59,15 @@ enum ShellPage {
         </html>
         """
     }
+
+    /// Behave like an app, not a page: no page zoom (Memories' viewer zooms photos itself),
+    /// and no text selection, callouts or tap highlights outside text fields.
+    static let nativeFeel = """
+    html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; \
+    -webkit-tap-highlight-color: transparent; }
+    input, textarea, [contenteditable], [contenteditable] * { -webkit-user-select: text; user-select: text; \
+    -webkit-touch-callout: default; }
+    """
 
     /// Only our nonce'd inline script runs; everything else must come from the local origin.
     static func contentSecurityPolicy(nonce: String) -> String {
