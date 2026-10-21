@@ -16,7 +16,7 @@ Back the key up somewhere safe. If it's lost, create a new one with `age-keygen`
 ## Get the latest build
 
 ```sh
-scripts/fetch-ipa.sh   # writes build/Cloudroll.ipa
+scripts/fetch-ipa.sh   # writes build/Cloudroll-<version>-<timestamp>.ipa, replacing older builds
 ```
 
 Then install it with [iloader](https://github.com/nab138/iloader) over USB, or open it in SideStore on the phone.
