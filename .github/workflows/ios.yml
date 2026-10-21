@@ -49,4 +49,5 @@ jobs:
         with:
           name: cloudroll-ipa-encrypted
           path: Cloudroll-unsigned.ipa.age
-          retention-days: 14
+          # scripts/fetch-ipa.sh deletes it after downloading; this is the fallback.
+          retention-days: 1
