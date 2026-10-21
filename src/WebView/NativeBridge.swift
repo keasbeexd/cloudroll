@@ -21,8 +21,8 @@ enum NativeBridgeScript {
         toast: (message) => post('toast', String(message)),
         logout: () => post('logout'),
         reload: () => location.reload(),
-        downloadFromUrl: () => post('unsupported', 'Downloading'),
-        setShareBlobs: () => post('unsupported', 'Sharing'),
+        downloadFromUrl: (url) => post('download', String(url)),
+        setShareBlobs: (objects) => post('setShareBlobs', String(objects)),
         configSetLocalFolders: () => {},
         configGetLocalFolders: () => '[]',
         configHasMediaPermission: () => false,
@@ -38,8 +38,9 @@ enum BridgeMessage: Equatable {
     case vibrate
     case toast(String)
     case logout
-    case unsupported(String)
     case navState(NavState)
+    case download(String)
+    case setShareBlobs(String)
 
     /// Parses `{ method, args }` posted by the script; unknown shapes are rejected.
     init?(body: Any) {
@@ -56,9 +57,12 @@ enum BridgeMessage: Equatable {
             self = .toast(message)
         case "logout":
             self = .logout
-        case "unsupported":
-            guard let feature = args.first as? String else { return nil }
-            self = .unsupported(feature)
+        case "download":
+            guard let url = args.first as? String else { return nil }
+            self = .download(url)
+        case "setShareBlobs":
+            guard let json = args.first as? String else { return nil }
+            self = .setShareBlobs(json)
         case "navState":
             guard let json = args.first as? String,
                   let state = try? JSONDecoder().decode(NavState.self, from: Data(json.utf8))

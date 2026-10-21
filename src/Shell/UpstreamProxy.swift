@@ -72,6 +72,40 @@ struct UpstreamProxy: Sendable {
         return try JSONDecoder().decode(Token.self, from: data).token
     }
 
+    /// Downloads straight to a file (videos can be large) named after the server's
+    /// Content-Disposition, inside `folder`.
+    func download(target: String, into folder: URL) async throws -> URL {
+        guard let url = URL(string: target, relativeTo: origin)?.absoluteURL,
+              url.scheme == origin.scheme, url.host == origin.host, url.port == origin.port
+        else { throw ProxyError(reason: "refused target \(target)") }
+        var request = URLRequest(url: url)
+        request.setValue(authorization, forHTTPHeaderField: "Authorization")
+
+        let (temporary, response) = try await session.download(for: request)
+        try HTTP.require(200, response, context: "Downloading")
+        let name = Self.safeFilename(response.suggestedFilename)
+        var destination = folder.appending(path: name)
+        // Several files may share a name (e.g. IMG_0001.JPG in two folders).
+        var counter = 1
+        while FileManager.default.fileExists(atPath: destination.path) {
+            counter += 1
+            let base = (name as NSString).deletingPathExtension
+            let ext = (name as NSString).pathExtension
+            destination = folder.appending(path: ext.isEmpty ? "\(base) \(counter)" : "\(base) \(counter).\(ext)")
+        }
+        try FileManager.default.moveItem(at: temporary, to: destination)
+        return destination
+    }
+
+    /// Server-provided names become file names, so path separators and leading dots go.
+    static func safeFilename(_ suggested: String?) -> String {
+        let cleaned = (suggested ?? "")
+            .components(separatedBy: CharacterSet(charactersIn: "/\\:\0"))
+            .joined(separator: "_")
+            .trimmingCharacters(in: CharacterSet(charactersIn: ". ").union(.whitespacesAndNewlines))
+        return cleaned.isEmpty ? "download" : cleaned
+    }
+
     func upstreamRequest(for request: HTTPRequest) async throws -> URLRequest {
         // The target is relative; reject anything (e.g. "//host/…") that would leave the server.
         guard let url = URL(string: request.target.rawValue, relativeTo: origin)?.absoluteURL,

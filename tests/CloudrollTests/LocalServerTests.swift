@@ -84,7 +84,7 @@ final class LocalServerTests: XCTestCase {
         let proxy = UpstreamProxy(origin: URL(string: "https://cloud.example.com")!, authorization: authorization, configuration: config)
         server = LocalServer(port: UInt16.random(in: 49_152...60_000))
         let shell = ShellConfig(webRoot: "", user: "alice", stylesheets: [["rel": "stylesheet", "href": "/core/css/server.css"]])
-        try await server.start(handler: LocalRequestHandler(authGuard: server.authGuard, assetDirectory: assets, proxy: proxy, shell: shell))
+        try await server.start(handler: LocalRequestHandler(authGuard: server.authGuard, assetDirectory: assets, proxy: proxy, shell: shell, localOrigin: server.origin))
     }
 
     override func tearDown() async throws {
@@ -193,7 +193,7 @@ final class LocalServerTests: XCTestCase {
 
     func testBridgeReportsNoLocalPhotosYet() async throws {
         let (days, daysResponse) = try await send("/api/days")
-        let (_, otherResponse) = try await send("/api/share/blobs")
+        let (_, otherResponse) = try await send("/api/image/info/1")
 
         XCTAssertEqual(daysResponse.statusCode, 200)
         XCTAssertEqual(String(decoding: days, as: UTF8.self), "[]")

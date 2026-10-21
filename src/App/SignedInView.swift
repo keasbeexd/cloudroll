@@ -66,6 +66,16 @@ struct SignedInView: View {
 
     private var bottomOverlay: some View {
         VStack(spacing: 8) {
+            if let busy = ShareCenter.shared.busyMessage {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text(busy).font(.callout)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.regularMaterial, in: Capsule())
+                .transition(.opacity)
+            }
             toastBanner
             if navigation.state.showsTabBar {
                 GlassTabBar(
@@ -133,12 +143,30 @@ struct SignedInView: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         case .toast(let text):
             toast = text
-        case .unsupported(let feature):
-            toast = "\(feature) isn't available in Cloudroll yet."
         case .logout:
             onSignOut()
         case .navState(let state):
             navigation.update(state)
+        case .download(let href):
+            Task { await download(href) }
+        case .setShareBlobs(let json):
+            do {
+                try ShareCenter.shared.setPendingBlobs(json)
+            } catch {
+                toast = error.localizedDescription
+            }
+        }
+    }
+
+    private func download(_ href: String) async {
+        guard let proxy = ShellHost.shared.proxy else {
+            toast = "Downloading needs the local Memories server, which isn't running."
+            return
+        }
+        do {
+            try await ShareCenter.shared.download(href, using: proxy, localOrigin: ShellHost.shared.server.origin)
+        } catch {
+            toast = error.localizedDescription
         }
     }
 }
