@@ -10,6 +10,7 @@ struct SignedInView: View {
     @State private var loadError: String?
     @State private var toast: String?
     @State private var themeColor: Color?
+    @State private var navigation = WebNavigation()
     @State private var reloadToken = UUID()
 
     var body: some View {
@@ -17,7 +18,7 @@ struct SignedInView: View {
             // Only the colour is mirrored: forcing a colour scheme here would also pin the
             // web view's prefers-color-scheme and stop Memories following the system.
             .background((themeColor ?? Color(.systemBackground)).ignoresSafeArea())
-            .overlay(alignment: .bottom) { toastBanner }
+            .overlay(alignment: .bottom) { bottomOverlay }
             .task(id: reloadToken) { await prepare() }
             .task(id: toast) { await dismissToastLater() }
             .onChange(of: scenePhase) { _, phase in
@@ -48,6 +49,7 @@ struct SignedInView: View {
             MemoriesWebView(
                 source: source,
                 credential: credential,
+                navigation: navigation,
                 onLoadError: { loadError = $0.localizedDescription },
                 onSignOut: onSignOut,
                 onBridgeMessage: handle
@@ -62,6 +64,21 @@ struct SignedInView: View {
         }
     }
 
+    private var bottomOverlay: some View {
+        VStack(spacing: 8) {
+            toastBanner
+            if navigation.state.showsTabBar {
+                GlassTabBar(
+                    tabs: navigation.state.tabs,
+                    selected: navigation.state.selectedTab,
+                    onSelect: navigation.select
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.smooth(duration: 0.25), value: navigation.state.showsTabBar)
+    }
+
     @ViewBuilder
     private var toastBanner: some View {
         if let toast {
@@ -70,7 +87,7 @@ struct SignedInView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(.regularMaterial, in: Capsule())
-                .padding(.bottom, 32)
+                .padding(.bottom, navigation.state.showsTabBar ? 0 : 32)
                 .transition(.opacity)
         }
     }
@@ -118,6 +135,8 @@ struct SignedInView: View {
             toast = "\(feature) isn't available in Cloudroll yet."
         case .logout:
             onSignOut()
+        case .navState(let state):
+            navigation.update(state)
         }
     }
 }

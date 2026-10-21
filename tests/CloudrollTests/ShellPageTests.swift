@@ -88,3 +88,40 @@ final class ShellPageTests: XCTestCase {
     }
 }
 
+
+final class NavStateTests: XCTestCase {
+    private let tabs = [
+        NavState.Tab(href: "/index.php/apps/memories/", label: "Photos"),
+        NavState.Tab(href: "/index.php/apps/memories/explore", label: "Explore"),
+        NavState.Tab(href: "/index.php/apps/memories/albums", label: "Albums"),
+    ]
+
+    private func state(_ path: String, hash: String = "", enabled: Bool = true) -> NavState {
+        NavState(enabled: enabled, tabs: tabs, path: path, hash: hash)
+    }
+
+    func testSelectedTabMatchesRootExactlyAndOthersByPrefix() {
+        XCTAssertEqual(state("/index.php/apps/memories/").selectedTab?.label, "Photos")
+        XCTAssertEqual(state("/index.php/apps/memories/albums/admin/Trip").selectedTab?.label, "Albums")
+        XCTAssertNil(state("/index.php/apps/memories/favorites").selectedTab)
+        XCTAssertNil(state("/index.php/apps/memories/albumsx").selectedTab)
+    }
+
+    func testTabBarHidesForOverlays() {
+        XCTAssertTrue(state("/index.php/apps/memories/").showsTabBar)
+        XCTAssertTrue(state("/index.php/apps/memories/", hash: "#day/20747").showsTabBar)
+        XCTAssertFalse(state("/index.php/apps/memories/", hash: "#v/20747/80").showsTabBar)
+        XCTAssertFalse(state("/index.php/apps/memories/", hash: "#s").showsTabBar)
+        XCTAssertFalse(state("/index.php/apps/memories/", hash: "#day/1&ss").showsTabBar)
+        XCTAssertFalse(state("/index.php/apps/memories/", enabled: false).showsTabBar)
+    }
+
+    func testBridgeParsesNavState() {
+        let json = #"{"enabled":true,"tabs":[{"href":"/a/","label":"Photos"}],"path":"/a/","hash":""}"#
+        XCTAssertEqual(
+            BridgeMessage(body: ["method": "navState", "args": [json]]),
+            .navState(NavState(enabled: true, tabs: [NavState.Tab(href: "/a/", label: "Photos")], path: "/a/", hash: ""))
+        )
+        XCTAssertNil(BridgeMessage(body: ["method": "navState", "args": ["{"]]))
+    }
+}

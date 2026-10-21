@@ -12,6 +12,7 @@ enum SessionError: LocalizedError {
 struct MemoriesWebView: UIViewRepresentable {
     let source: MemoriesSource
     let credential: Credential
+    let navigation: WebNavigation
     let onLoadError: (Error) -> Void
     let onSignOut: () -> Void
     let onBridgeMessage: (BridgeMessage) -> Void
@@ -30,11 +31,24 @@ struct MemoriesWebView: UIViewRepresentable {
                 injectionTime: .atDocumentStart,
                 forMainFrameOnly: true
             ))
+            do {
+                config.userContentController.addUserScript(WKUserScript(
+                    source: try WebNavigation.script(),
+                    injectionTime: .atDocumentStart,
+                    forMainFrameOnly: true
+                ))
+            } catch {
+                // Memories keeps its own navigation. Reported after this view update,
+                // since state can't change while SwiftUI builds the view.
+                let onLoadError = onLoadError
+                Task { @MainActor in onLoadError(error) }
+            }
             config.userContentController.add(WeakMessageHandler(context.coordinator), name: NativeBridgeScript.handlerName)
         }
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
+        navigation.webView = webView
         context.coordinator.load(in: webView)
         return webView
     }

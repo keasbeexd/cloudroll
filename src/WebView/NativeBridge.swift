@@ -39,6 +39,7 @@ enum BridgeMessage: Equatable {
     case toast(String)
     case logout
     case unsupported(String)
+    case navState(NavState)
 
     /// Parses `{ method, args }` posted by the script; unknown shapes are rejected.
     init?(body: Any) {
@@ -58,6 +59,11 @@ enum BridgeMessage: Equatable {
         case "unsupported":
             guard let feature = args.first as? String else { return nil }
             self = .unsupported(feature)
+        case "navState":
+            guard let json = args.first as? String,
+                  let state = try? JSONDecoder().decode(NavState.self, from: Data(json.utf8))
+            else { return nil }
+            self = .navState(state)
         default:
             return nil
         }

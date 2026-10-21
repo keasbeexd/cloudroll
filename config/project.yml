@@ -22,6 +22,10 @@ targets:
     platform: iOS
     sources:
       - path: ../src
+        excludes: ["**/*.js"]
+      # Injected into the shell page at runtime, so it ships as a resource.
+      - path: ../src/WebView/shell-navigation.js
+        buildPhase: resources
     dependencies:
       - package: FlyingFox
         product: FlyingFox
