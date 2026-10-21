@@ -70,8 +70,10 @@ struct SignedInView: View {
             if navigation.state.showsTabBar {
                 GlassTabBar(
                     tabs: navigation.state.tabs,
-                    selected: navigation.state.selectedTab,
-                    onSelect: navigation.select
+                    selected: navigation.highlightedTab,
+                    isCompact: navigation.state.collapsed == true,
+                    onSelect: navigation.select,
+                    onExpand: navigation.expand
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }

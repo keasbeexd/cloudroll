@@ -6,33 +6,75 @@ import SwiftUI
 struct GlassTabBar: View {
     let tabs: [NavState.Tab]
     let selected: NavState.Tab?
+    /// Shrinks to icons only while the user scrolls down, like iOS tab bars.
+    let isCompact: Bool
     let onSelect: (NavState.Tab) -> Void
+    let onExpand: () -> Void
+
+    @Namespace private var selection
+    @State private var taps: [String: Int] = [:]
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: isCompact ? 2 : 0) {
             ForEach(tabs) { tab in
-                Button {
-                    onSelect(tab)
-                } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: tab.symbol)
-                            .font(.system(size: 19, weight: .medium))
-                        Text(tab.label)
-                            .font(.caption2.weight(.semibold))
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                    .foregroundStyle(tab == selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(tab == selected ? .isSelected : [])
+                button(for: tab)
             }
         }
-        .padding(.horizontal, 6)
-        .frame(height: 62)
+        .padding(isCompact ? 5 : 6)
+        .frame(height: isCompact ? 50 : 62)
         .modifier(GlassCapsule())
-        .padding(.horizontal, 24)
+        .padding(.horizontal, isCompact ? 0 : 24)
         .padding(.bottom, 8)
+        .animation(.spring(response: 0.38, dampingFraction: 0.78), value: selected)
+        .animation(.spring(response: 0.42, dampingFraction: 0.82), value: isCompact)
+        .sensoryFeedback(.selection, trigger: selected)
+    }
+
+    private func button(for tab: NavState.Tab) -> some View {
+        let isSelected = tab == selected
+        return Button {
+            taps[tab.id, default: 0] += 1
+            if isCompact && isSelected {
+                onExpand()
+            } else {
+                onSelect(tab)
+            }
+        } label: {
+            VStack(spacing: 2) {
+                Image(systemName: tab.symbol)
+                    .font(.system(size: isCompact ? 17 : 19, weight: .semibold))
+                    .symbolEffect(.bounce, value: taps[tab.id] ?? 0)
+                if !isCompact {
+                    Text(tab.label)
+                        .font(.caption2.weight(.semibold))
+                        .lineLimit(1)
+                        .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                }
+            }
+            .frame(maxWidth: isCompact ? nil : .infinity, maxHeight: .infinity)
+            .frame(width: isCompact ? 46 : nil)
+            .background {
+                if isSelected {
+                    Capsule()
+                        .fill(.tint.opacity(0.16))
+                        .matchedGeometryEffect(id: "selection", in: selection)
+                }
+            }
+            .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressScaleStyle())
+        .accessibilityLabel(tab.label)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+/// Squishes slightly while pressed, like system tab bar items.
+private struct PressScaleStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.88 : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 
