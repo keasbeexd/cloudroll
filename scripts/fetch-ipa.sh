@@ -25,7 +25,10 @@ gh run download "$run_id" --name "$ARTIFACT" --dir "$tmp"
 
 mkdir -p "$OUT_DIR"
 age -d -i "$KEY" -o "$OUT_DIR/Cloudroll.ipa" "$tmp/Cloudroll-unsigned.ipa.age"
-gh api -X DELETE "repos/{owner}/{repo}/actions/artifacts/$artifact_id"
+# Delete this build and any older ones that were never fetched.
+for id in $(gh api "repos/{owner}/{repo}/actions/artifacts?name=$ARTIFACT&per_page=100" --jq '.artifacts[].id'); do
+  gh api -X DELETE "repos/{owner}/{repo}/actions/artifacts/$id"
+done
 version="$(unzip -p "$OUT_DIR/Cloudroll.ipa" Payload/Cloudroll.app/Info.plist \
   | python3 -I -c 'import plistlib, sys; print(plistlib.loads(sys.stdin.buffer.read())["CFBundleShortVersionString"])')"
 echo "Decrypted Cloudroll $version (CI run $run_id) to $OUT_DIR/Cloudroll.ipa and deleted it from GitHub."
