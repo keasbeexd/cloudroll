@@ -14,14 +14,13 @@ The app runs an HTTP server on `127.0.0.1:47811` with [FlyingFox](https://github
 
 ## Why
 
-- **Use a library:** any app on the device can connect to the port, so HTTP parsing is security-sensitive. FlyingFox is small, actively maintained, supports iOS, and handles any HTTP method, range requests and keep-alive.
+- **Use a library:** any app on the device can connect to the port, so HTTP parsing is security-sensitive. FlyingFox is small, actively maintained, supports iOS, and handles range requests and keep-alive. Custom methods work once they're registered explicitly (see below).
 - **Alternatives:** writing our own server on Network.framework would mean owning a hand-written HTTP parser. SwiftNIO/Hummingbird are much larger than this needs.
 - **One origin:** the shell page, the proxied API and the `nativex` bridge share an origin, so the web UI needs no CORS and no Nextcloud cookie in the web view.
 
 ## Consequences
 
 - FlyingFox's catch-all route (`"*"`) only matches GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, CONNECT and TRACE. `LocalServer` therefore registers its handler for an explicit list that adds Nextcloud's WebDAV methods (PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, LOCK, UNLOCK, REPORT, SEARCH). Without it, albums, public links and moves got FlyingFox's internal 404. `testForwardsWebDAVAndOCSRequests` covers this.
-
 - iOS closes the listening socket when the app is suspended, so the server has to be restarted when the app returns to the foreground (`LocalServer.start` can be called again).
 - The tests reach the server over real HTTP but stub Nextcloud with a `URLProtocol`. The test bundle doesn't link FlyingFox, to avoid loading a second copy into the test host.
 - Large uploads are buffered in memory. If photo uploads from the phone need it, switch to streaming them from a file.
