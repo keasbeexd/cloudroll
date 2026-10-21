@@ -125,3 +125,13 @@ final class NavStateTests: XCTestCase {
         XCTAssertNil(BridgeMessage(body: ["method": "navState", "args": ["{"]]))
     }
 }
+
+final class NavStateCollapseTests: XCTestCase {
+    func testCollapsedIsOptionalForOlderScripts() throws {
+        let old = try JSONDecoder().decode(NavState.self, from: Data(#"{"enabled":true,"tabs":[],"path":"/","hash":""}"#.utf8))
+        let new = try JSONDecoder().decode(NavState.self, from: Data(#"{"enabled":true,"tabs":[],"path":"/","hash":"","collapsed":true}"#.utf8))
+
+        XCTAssertNil(old.collapsed)
+        XCTAssertEqual(new.collapsed, true)
+    }
+}

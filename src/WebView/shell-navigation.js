@@ -27,16 +27,23 @@
 
   let lastReport = '';
   let scheduled = false;
+  // Scrolling down a list shrinks the native bar, like iOS tab bars.
+  let collapsed = false;
+  let lastPath = location.pathname;
   const report = () => {
     scheduled = false;
     const enabled = !!document.getElementById('mobile-nav');
     if (enabled && !style.isConnected) document.head.appendChild(style);
     document.documentElement.classList.toggle(NATIVE_CLASS, enabled);
 
+    if (location.pathname !== lastPath) {
+      lastPath = location.pathname;
+      collapsed = false;
+    }
     const tabs = enabled
       ? tabLinks().map((a) => ({ href: new URL(a.href).pathname, label: a.textContent.trim() }))
       : [];
-    const json = JSON.stringify({ enabled, tabs, path: location.pathname, hash: location.hash });
+    const json = JSON.stringify({ enabled, tabs, path: location.pathname, hash: location.hash, collapsed });
     if (json === lastReport) return;
     lastReport = json;
     post(JSON.parse(json));
@@ -56,6 +63,30 @@
       return result;
     };
   }
+  // Scroll events don't bubble, so listen in the capture phase for Memories' scrollers.
+  const anchors = new WeakMap();
+  document.addEventListener('scroll', (event) => {
+    const scroller = event.target;
+    if (!(scroller instanceof Element) || !scroller.matches('.recycler, .grid-recycler')) return;
+    const y = scroller.scrollTop;
+    if (!anchors.has(scroller)) {
+      anchors.set(scroller, y);
+      return;
+    }
+    const anchor = anchors.get(scroller);
+    if (Math.abs(y - anchor) < 12) return;
+    anchors.set(scroller, y);
+    const next = y > anchor && y > 60;
+    if (next === collapsed) return;
+    collapsed = next;
+    scheduleReport();
+  }, { capture: true, passive: true });
+
+  window.__cloudrollExpandBar = () => {
+    collapsed = false;
+    scheduleReport();
+  };
+
   addEventListener('popstate', scheduleReport);
   addEventListener('hashchange', scheduleReport);
 

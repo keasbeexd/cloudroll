@@ -28,6 +28,8 @@ struct NavState: Decodable, Equatable {
     let tabs: [Tab]
     let path: String
     let hash: String
+    /// The user is scrolling down a list; absent from older script versions.
+    var collapsed: Bool? = nil
 
     static let empty = NavState(enabled: false, tabs: [], path: "", hash: "")
 
@@ -47,16 +49,30 @@ struct NavState: Decodable, Equatable {
 @Observable
 final class WebNavigation {
     private(set) var state = NavState.empty
+    /// Highlighted on tap, before Memories reports the new route, so the bar reacts instantly.
+    private var pendingTab: NavState.Tab?
     @ObservationIgnored weak var webView: WKWebView?
+
+    var highlightedTab: NavState.Tab? { pendingTab ?? state.selectedTab }
 
     func update(_ state: NavState) {
         self.state = state
+        pendingTab = nil
     }
 
     private nonisolated static let log = Logger(subsystem: "app.cloudroll", category: "navigation")
 
+    func expand() {
+        webView?.evaluateJavaScript("window.__cloudrollExpandBar()") { _, error in
+            if let error {
+                Self.log.error("Expanding the tab bar failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
     func select(_ tab: NavState.Tab) {
         guard tab != state.selectedTab, let webView else { return }
+        pendingTab = tab
         webView.evaluateJavaScript("window.__cloudrollSelectTab(\(ShellPage.jsString(tab.href)))") { result, error in
             if let error {
                 Self.log.error("Selecting tab \(tab.href, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
