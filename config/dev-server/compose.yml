@@ -1,0 +1,53 @@
+# Local Nextcloud 34 + Memories for testing Cloudroll on an iPhone over Wi-Fi.
+# Start it with scripts/dev-server.sh; details in docs/dev-server.md.
+name: cloudroll-dev
+
+services:
+  db:
+    image: docker.io/library/mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: nextcloud
+      MARIADB_USER: nextcloud
+      MARIADB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is not set; run scripts/dev-server.sh}
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+    volumes:
+      - db:/var/lib/mysql
+
+  nextcloud:
+    image: docker.io/library/nextcloud:34.0.5-apache
+    restart: unless-stopped
+    depends_on: [db]
+    environment:
+      MYSQL_HOST: db
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is not set; run scripts/dev-server.sh}
+      NEXTCLOUD_ADMIN_USER: admin
+      NEXTCLOUD_ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is not set; run scripts/dev-server.sh}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${HOST_IP:?HOST_IP is not set; run scripts/dev-server.sh}
+      # Caddy terminates TLS on a non-standard port; generated URLs must include both.
+      OVERWRITEPROTOCOL: https
+      OVERWRITEHOST: ${HOST_IP}:${HTTPS_PORT:-8443}
+      OVERWRITECLIURL: https://${HOST_IP}:${HTTPS_PORT:-8443}
+      TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12
+    volumes:
+      - nextcloud:/var/www/html
+
+  caddy:
+    image: docker.io/library/caddy:2.11
+    restart: unless-stopped
+    depends_on: [nextcloud]
+    # Rootless Podman can't bind ports below 1024, hence 8443.
+    ports:
+      - "${HTTPS_PORT:-8443}:443"
+    environment:
+      HOST_IP: ${HOST_IP}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy:/data
+
+volumes:
+  db: {}
+  nextcloud: {}
+  caddy: {}

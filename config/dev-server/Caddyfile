@@ -1,0 +1,11 @@
+{
+	# Certificates come from Caddy's own local CA; its root is installed on the test iPhone.
+	local_certs
+	# Clients send no SNI when connecting to an IP address.
+	default_sni {$HOST_IP}
+}
+
+https://{$HOST_IP} {
+	tls internal
+	reverse_proxy nextcloud:80
+}
