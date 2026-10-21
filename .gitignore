@@ -3,3 +3,5 @@ config/Info.plist
 build/
 DerivedData/
 .DS_Store
+config/dev-server/.env
+config/dev-server/root.crt
