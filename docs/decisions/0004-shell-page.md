@@ -9,7 +9,7 @@ When `api/describe?manifest=1` returns a signed manifest (Memories 9+) and it ve
 The local server generates the page Nextcloud would normally render:
 
 - `<head data-user="…" data-requesttoken="…">` (read by `@nextcloud/auth`). The token is fetched through the proxy's cookie session, so Memories' first API call doesn't fail Nextcloud's CSRF check. Then the server's stylesheets from `cssManifest`. The stylesheets load through the proxy, and only server-relative ones are accepted.
-- One nonce'd inline script that sets `_oc_webroot`, `_oc_appswebroots` and `_oc_capabilities`, then the verified `memories-l10n.js` and `memories-main.js`.
+- One nonce'd inline script that sets `_oc_webroot`, `_oc_appswebroots`, `_oc_capabilities` and a minimal `window.OC` (`webroot`, an empty `config`), then the verified `memories-l10n.js` and `memories-main.js`. Album sharing reads `window.OC.config` without a guard, and that crashed the Share Album sheet before this was added. `config` stays empty on purpose: setting `modRewriteWorking` would make `generateUrl` drop `/index.php` and break the router base.
 - A strict Content-Security-Policy and `Cache-Control: no-store`.
 
 Routing additions (`LocalRouter`):

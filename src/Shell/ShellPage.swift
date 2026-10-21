@@ -46,6 +46,9 @@ enum ShellPage {
             <div id="content"></div>
             <script nonce="\(nonce)">
                 window._oc_webroot = \(webRoot);
+                // Memories' album sharing reads OC.config without a guard. config stays empty:
+                // claiming modRewriteWorking would change generateUrl and the router base.
+                window.OC = { webroot: \(webRoot), config: {} };
                 window._oc_appswebroots = { memories: \(webRoot) + '/apps/memories' };
                 window._oc_capabilities = { files: {
                     forbidden_filename_characters: ['/', '\\\\'],
