@@ -16,9 +16,15 @@ Back the key up somewhere safe. If it's lost, create a new one with `age-keygen`
 ## Get the latest build
 
 ```sh
-scripts/fetch-ipa.sh   # writes build/Cloudroll-<version>-<timestamp>.ipa, replacing older builds
+scripts/fetch-ipa.sh
 ```
 
-Then install it with [iloader](https://github.com/nab138/iloader) over USB, or open it in SideStore on the phone.
+The script:
+- saves the build as `~/.cache/cloudroll/builds/Cloudroll-<version>-<timestamp>.ipa`, replacing older builds;
+- uploads it to the `Cloudroll Builds` folder on Nextcloud (credentials in `~/.config/nc-keasbee.netrc`), deleting older IPAs there.
+
+Each build gets a new name so the phone never opens a cached older copy. Builds are kept outside desktop-synced folders because sync clients can lag or skip rewritten files.
+
+On the iPhone, open the IPA from the Nextcloud app (or Files) in SideStore, or install it over USB with [iloader](https://github.com/nab138/iloader).
 
 Once the developer account exists, builds go out through TestFlight instead and this workflow step can be removed.
