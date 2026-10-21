@@ -15,7 +15,8 @@ services:
       - db:/var/lib/mysql
 
   nextcloud:
-    image: docker.io/library/nextcloud:34.0.5-apache
+    build: .
+    image: localhost/cloudroll-dev-nextcloud:34.0.5
     restart: unless-stopped
     depends_on: [db]
     environment:
