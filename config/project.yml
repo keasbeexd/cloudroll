@@ -37,4 +37,18 @@ targets:
         # relative to the generated project, which lives in the repo root.
         INFOPLIST_FILE: config/Info.plist
         TARGETED_DEVICE_FAMILY: "1"
-    scheme: {}
+    scheme:
+      testTargets: [CloudrollTests]
+  CloudrollTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: ../tests/CloudrollTests
+      - path: ../tests/Fixtures
+        buildPhase: resources
+    dependencies:
+      - target: Cloudroll
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.cloudroll.ios.tests
+        GENERATE_INFOPLIST_FILE: YES
