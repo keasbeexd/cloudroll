@@ -35,3 +35,18 @@ jobs:
           mkdir -p ipa/Payload
           cp -R build/Build/Products/Release-iphoneos/Cloudroll.app ipa/Payload/
           (cd ipa && zip -qry ../Cloudroll-unsigned.ipa Payload)
+      # Only the maintainer can decrypt the artifact (scripts/fetch-ipa.sh); the
+      # recipient is a public key, so no secret is stored on GitHub.
+      - name: Encrypt IPA
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          brew install age
+          age -r "$IPA_RECIPIENT" -o Cloudroll-unsigned.ipa.age Cloudroll-unsigned.ipa
+        env:
+          IPA_RECIPIENT: age1d6z7wq9uljcnw7ekr6az99r43xvwvdavuz060nswkve3hj7zu5sswkzd78
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: cloudroll-ipa-encrypted
+          path: Cloudroll-unsigned.ipa.age
+          retention-days: 14
