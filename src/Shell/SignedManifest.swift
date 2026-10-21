@@ -2,13 +2,18 @@ import CryptoKit
 import Foundation
 
 /// A Memories web asset listed in the signed manifest.
-struct WebAsset: Equatable {
+struct WebAsset: Equatable, Sendable {
     /// File name, safe to use as a path component.
     let name: String
     /// Server-relative URL, e.g. `/apps/memories/js/memories-main.js?v=…`.
     let href: String
     let sha256: String
     let length: Int
+
+    /// Names become file names on disk and are served by the local server.
+    static func isSafeName(_ name: String) -> Bool {
+        !name.isEmpty && !name.hasPrefix(".") && !name.contains { "/\\%".contains($0) }
+    }
 }
 
 enum ManifestError: LocalizedError, Equatable {
@@ -130,11 +135,10 @@ enum SignedManifest {
     /// Names become file names on disk and hrefs are fetched from the user's server,
     /// so both are restricted even though the manifest is signed.
     private static func asset(name: String, target: Targets.Target) throws -> WebAsset {
-        let isSafeName = !name.isEmpty && !name.hasPrefix(".") && !name.contains("/") && !name.contains("\\")
         let isServerRelative = target.custom.href.hasPrefix("/") && !target.custom.href.hasPrefix("//")
         let hash = target.hashes.sha256.lowercased()
         let isHexHash = hash.count == 64 && hash.allSatisfy(\.isHexDigit)
-        guard isSafeName, isServerRelative, isHexHash, target.length >= 0 else {
+        guard WebAsset.isSafeName(name), isServerRelative, isHexHash, target.length >= 0 else {
             throw ManifestError.unsafeTarget(name)
         }
         return WebAsset(name: name, href: target.custom.href, sha256: hash, length: target.length)

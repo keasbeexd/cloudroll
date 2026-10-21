@@ -1,6 +1,6 @@
 import Foundation
 
-struct Credential: Codable, Equatable {
+struct Credential: Codable, Equatable, Sendable {
     let server: URL
     let loginName: String
     let appPassword: String
