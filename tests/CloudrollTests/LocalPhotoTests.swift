@@ -68,3 +68,13 @@ final class TimelineSourceTests: XCTestCase {
         XCTAssertFalse(isMain("DELETE", "/index.php/apps/memories/api/days", []))
     }
 }
+
+final class UploadPathTests: XCTestCase {
+    func testUploadPathsStayInsideTheUsersFiles() throws {
+        XCTAssertEqual(try UpstreamProxy.validatedSegments("/Photos/2026/IMG_0001.HEIC"), ["Photos", "2026", "IMG_0001.HEIC"])
+        XCTAssertEqual(try UpstreamProxy.validatedSegments("/IMG 1.jpg"), ["IMG 1.jpg"])
+        for bad in ["Photos/x.jpg", "/../x.jpg", "/Photos/./x.jpg", "/", "/a\\b.jpg", "/a\nb.jpg"] {
+            XCTAssertThrowsError(try UpstreamProxy.validatedSegments(bad), bad)
+        }
+    }
+}

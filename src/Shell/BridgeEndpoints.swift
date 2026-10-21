@@ -6,9 +6,12 @@ import Foundation
 enum BridgeEndpoints {
     static let shareURLPrefix = "/api/share/url/"
 
-    static func respond(to request: HTTPRequest, proxy: UpstreamProxy, localOrigin: URL) async -> HTTPResponse {
+    static func respond(to request: HTTPRequest, proxy: UpstreamProxy, localOrigin: URL, shell: ShellConfig) async -> HTTPResponse {
         let path = request.path
         do {
+            if path == "/api/upload/local" {
+                return try await uploadLocal(request, proxy: proxy, shell: shell)
+            }
             if let response = try await respondToLocalMedia(request, path: path) {
                 return response
             }
@@ -86,6 +89,33 @@ enum BridgeEndpoints {
             return HTTPResponse(statusCode: .ok)
         }
         return nil
+    }
+
+    /// Memories' `UPLOAD_LOCAL`: uploads a phone photo's original to `filename` in the user's files.
+    private static func uploadLocal(_ request: HTTPRequest, proxy: UpstreamProxy, shell: ShellConfig) async throws -> HTTPResponse {
+        guard let auid = query("auid", in: request), let filename = query("filename", in: request) else {
+            return LocalRequestHandler.plain(HTTPStatusCode(400, phrase: "Bad Request"), "auid and filename are required.")
+        }
+        guard let user = shell.user else {
+            throw ProxyError(reason: "the signed-in user is unknown")
+        }
+        let folder = FileManager.default.temporaryDirectory.appending(path: "uploads/\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer {
+            do {
+                try FileManager.default.removeItem(at: folder)
+            } catch {
+                DiagnosticsLog.record("bridge", "Removing the upload's temporary copy failed: \(error.localizedDescription)")
+            }
+        }
+
+        let original = try await PhotoLibrary.shared.originalForUpload(auid: auid, into: folder)
+        let fileID = try await proxy.upload(
+            file: original.file, to: filename, user: user, webRoot: shell.webRoot,
+            mtime: original.epoch, contentType: original.mimetype
+        )
+        await PhotoLibrary.shared.setHasRemote(auids: [auid], buids: [], value: true)
+        return try json(["fileid": fileID])
     }
 
     private static func json(_ value: some Encodable) throws -> HTTPResponse {
