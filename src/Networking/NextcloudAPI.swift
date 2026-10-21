@@ -1,9 +1,17 @@
 import Foundation
 
 enum NextcloudAPI {
-    static func describeMemories(server: URL) async throws -> MemoriesInfo {
-        var request = URLRequest(url: ServerURL.memoriesDescribe(root: server))
+    /// Authenticated so the response includes the user id; `manifest=1` asks Memories 9+
+    /// for the signed asset manifest (older versions ignore it).
+    static func describeMemories(_ credential: Credential) async throws -> MemoriesInfo {
+        var components = URLComponents(url: ServerURL.memoriesDescribe(root: credential.server), resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "manifest", value: "1")]
+        guard let url = components?.url else {
+            throw ProxyError(reason: "invalid server address \(credential.server)")
+        }
+        var request = URLRequest(url: url)
         request.setValue(HTTP.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue(credential.authorizationHeader, forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         if HTTP.status(of: response) == 404 { throw MemoriesError.notInstalled }

@@ -19,12 +19,35 @@ final class LocalShellUnitTests: XCTestCase {
     }
 
     func testRoutes() {
-        XCTAssertEqual(LocalRouter.route(path: "/local/assets/memories-main.js"), .asset("memories-main.js"))
-        XCTAssertEqual(LocalRouter.route(path: "/local/assets/.hidden"), .notFound)
-        XCTAssertEqual(LocalRouter.route(path: "/local/assets/a%2Fb"), .notFound)
-        XCTAssertEqual(LocalRouter.route(path: "/local"), .notFound)
-        XCTAssertEqual(LocalRouter.route(path: "/localhost/x"), .proxy)
-        XCTAssertEqual(LocalRouter.route(path: "/apps/memories/api/days"), .proxy)
+        let router = LocalRouter(webRoot: "")
+        func route(_ path: String, _ method: String = "GET", document: Bool = false) -> LocalRoute {
+            router.route(method: method, path: path, wantsDocument: document)
+        }
+
+        XCTAssertEqual(route("/local/assets/memories-main.js"), .asset("memories-main.js"))
+        XCTAssertEqual(route("/local/assets/.hidden"), .notFound)
+        XCTAssertEqual(route("/local/assets/a%2Fb"), .notFound)
+        XCTAssertEqual(route("/local"), .notFound)
+        XCTAssertEqual(route("/localhost/x"), .proxy)
+        XCTAssertEqual(route("/apps/memories/api/days"), .proxy)
+        XCTAssertEqual(route("/index.php/apps/memories/", document: true), .shell)
+        XCTAssertEqual(route("/index.php/apps/memories/albums/x", document: true), .shell)
+        XCTAssertEqual(route("/apps/memories/js/memories-chunk.js"), .asset("memories-chunk.js"))
+        XCTAssertEqual(route("/index.php/apps/memories/js/memories-chunk.js"), .asset("memories-chunk.js"))
+        XCTAssertEqual(route("/apps/memories/js/memories-chunk.js", "POST"), .proxy)
+        XCTAssertEqual(route("/apps/files/", document: true), .notFound)
+        XCTAssertEqual(route("/api/days"), .bridge)
+        XCTAssertEqual(route("/image/preview/1"), .bridge)
+        XCTAssertEqual(route("/apis/x"), .proxy)
+    }
+
+    func testRoutesUnderSubfolderWebRoot() {
+        let router = LocalRouter(webRoot: "/nc")
+
+        XCTAssertEqual(router.entryPath, "/nc/index.php/apps/memories/")
+        XCTAssertEqual(router.route(method: "GET", path: "/nc/index.php/apps/memories/", wantsDocument: true), .shell)
+        XCTAssertEqual(router.route(method: "GET", path: "/index.php/apps/memories/", wantsDocument: true), .notFound)
+        XCTAssertEqual(router.route(method: "GET", path: "/nc/apps/memories/js/a.js", wantsDocument: false), .asset("a.js"))
     }
 
     func testLocationRewriteOnlyForUpstreamOrigin() throws {

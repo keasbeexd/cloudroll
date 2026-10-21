@@ -82,7 +82,8 @@ final class LocalServerTests: XCTestCase {
         config.protocolClasses = [StubUpstream.self]
         let proxy = UpstreamProxy(origin: URL(string: "https://cloud.example.com")!, authorization: authorization, configuration: config)
         server = LocalServer(port: UInt16.random(in: 49_152...60_000))
-        try await server.start(handler: LocalRequestHandler(authGuard: server.authGuard, assetDirectory: assets, proxy: proxy))
+        let shell = ShellConfig(webRoot: "", user: "alice", stylesheets: [["rel": "stylesheet", "href": "/core/css/server.css"]])
+        try await server.start(handler: LocalRequestHandler(authGuard: server.authGuard, assetDirectory: assets, proxy: proxy, shell: shell))
     }
 
     override func tearDown() async throws {
@@ -94,11 +95,15 @@ final class LocalServerTests: XCTestCase {
         _ target: String,
         method: String = "GET",
         body: Data? = nil,
+        accept: String? = nil,
         withSecret: Bool = true
     ) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: try XCTUnwrap(URL(string: target, relativeTo: server.origin)))
         request.httpMethod = method
         request.httpBody = body
+        if let accept {
+            request.setValue(accept, forHTTPHeaderField: "Accept")
+        }
         if withSecret {
             request.setValue("other=1; \(LocalAuthGuard.cookieName)=\(server.authGuard.secret)", forHTTPHeaderField: "Cookie")
         }
@@ -153,6 +158,43 @@ final class LocalServerTests: XCTestCase {
             let (_, response) = try await send(target)
             XCTAssertEqual(response.statusCode, 404, target)
         }
+        XCTAssertTrue(StubUpstream.received.isEmpty)
+    }
+
+    func testServesShellForAppRoutes() async throws {
+        let (data, response) = try await send("/index.php/apps/memories/", accept: "text/html,application/xhtml+xml")
+        let html = String(decoding: data, as: UTF8.self)
+
+        XCTAssertEqual(response.statusCode, 200)
+        XCTAssertEqual(response.value(forHTTPHeaderField: "Cache-Control"), "no-store")
+        XCTAssertNotNil(response.value(forHTTPHeaderField: "Content-Security-Policy"))
+        XCTAssertTrue(html.contains("memories-main.js"))
+        XCTAssertTrue(html.contains(#"<link rel="stylesheet" href="/core/css/server.css">"#))
+        XCTAssertTrue(StubUpstream.received.isEmpty)
+    }
+
+    func testServesMemoriesChunksFromSnapshot() async throws {
+        let (data, response) = try await send("/apps/memories/js/memories-main.js?v=abc")
+
+        XCTAssertEqual(response.statusCode, 200)
+        XCTAssertEqual(String(decoding: data, as: UTF8.self), "console.log(1)")
+        XCTAssertTrue(StubUpstream.received.isEmpty)
+    }
+
+    func testOtherDocumentsAreNeverForwarded() async throws {
+        let (_, response) = try await send("/apps/files/", accept: "text/html")
+
+        XCTAssertEqual(response.statusCode, 404)
+        XCTAssertTrue(StubUpstream.received.isEmpty)
+    }
+
+    func testBridgeReportsNoLocalPhotosYet() async throws {
+        let (days, daysResponse) = try await send("/api/days")
+        let (_, otherResponse) = try await send("/api/share/blobs")
+
+        XCTAssertEqual(daysResponse.statusCode, 200)
+        XCTAssertEqual(String(decoding: days, as: UTF8.self), "[]")
+        XCTAssertEqual(otherResponse.statusCode, 501)
         XCTAssertTrue(StubUpstream.received.isEmpty)
     }
 }
