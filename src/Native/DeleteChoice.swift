@@ -23,7 +23,17 @@ final class DeleteChoiceCenter {
     private(set) var pendingCount: Int?
     @ObservationIgnored private var continuation: CheckedContinuation<DeleteChoice, Never>?
     /// Set by "Nextcloud only" for the delete call that follows the dry run.
-    @ObservationIgnored var skipNextPhoneDelete = false
+    @ObservationIgnored private var skipNextPhoneDelete = false
+
+    func skipNextPhoneDeletion() {
+        skipNextPhoneDelete = true
+    }
+
+    /// True once after "Nextcloud only" was chosen.
+    func consumeSkipNextPhoneDeletion() -> Bool {
+        defer { skipNextPhoneDelete = false }
+        return skipNextPhoneDelete
+    }
 
     func ask(count: Int) async -> DeleteChoice {
         continuation?.resume(returning: .cancel)

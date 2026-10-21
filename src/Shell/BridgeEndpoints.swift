@@ -93,15 +93,14 @@ enum BridgeEndpoints {
     /// Nextcloud trigger the native "delete where?" question (see DeleteChoiceCenter).
     private static func deleteLocal(auids: [String], dry: Bool) async throws -> HTTPResponse {
         let library = PhotoLibrary.shared
-        let choices = DeleteChoiceCenter.shared
         if dry {
             let onBoth = await library.countOnBoth(auids: auids)
             if onBoth > 0 {
-                switch await choices.ask(count: onBoth) {
+                switch await DeleteChoiceCenter.shared.ask(count: onBoth) {
                 case .both:
                     break
                 case .cloudOnly:
-                    await MainActor.run { choices.skipNextPhoneDelete = true }
+                    await DeleteChoiceCenter.shared.skipNextPhoneDeletion()
                 case .phoneOnly:
                     if try await library.delete(auids: auids, dry: false) > 0 {
                         await PageState.shared.libraryChanged()
@@ -111,8 +110,7 @@ enum BridgeEndpoints {
                     return aborted("Cancelled.")
                 }
             }
-        } else if await MainActor.run(body: { choices.skipNextPhoneDelete }) {
-            await MainActor.run { choices.skipNextPhoneDelete = false }
+        } else if await DeleteChoiceCenter.shared.consumeSkipNextPhoneDeletion() {
             // Memories hides phone-only photos it believes were deleted; bring them back.
             Task {
                 do {
