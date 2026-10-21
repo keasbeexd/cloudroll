@@ -27,10 +27,14 @@ final class PageState {
         observeLibraryIfAllowed()
     }
 
-    /// Memories caches local days; it clears them on this event (src/native/days.ts).
+    /// Memories caches local days and clears them on `nativex:db:updated` (src/native/days.ts),
+    /// but only `memories:timeline:soft-refresh` makes the open timeline fetch them again.
     func libraryChanged() async {
         await PhotoLibrary.shared.invalidate()
-        await evaluate("window._nc_event_bus?.emit('nativex:db:updated', null)")
+        await evaluate("""
+        window._nc_event_bus?.emit('nativex:db:updated', null);
+        window._nc_event_bus?.emit('memories:timeline:soft-refresh', null)
+        """)
     }
 
     /// The async API throws when a script's result can't be bridged (objects, undefined),
