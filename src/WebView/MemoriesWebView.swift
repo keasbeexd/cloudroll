@@ -10,12 +10,13 @@ enum SessionError: LocalizedError {
 }
 
 struct MemoriesWebView: UIViewRepresentable {
+    let entry: URL
     let credential: Credential
     let onLoadError: (Error) -> Void
     let onSignOut: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(credential: credential, onLoadError: onLoadError, onSignOut: onSignOut)
+        Coordinator(entry: entry, credential: credential, onLoadError: onLoadError, onSignOut: onSignOut)
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -36,12 +37,14 @@ struct MemoriesWebView: UIViewRepresentable {
         /// A login redirect this soon after sending the app password means it was rejected.
         private static let rejectionWindow: TimeInterval = 10
 
+        private let entry: URL
         private let credential: Credential
         private let onLoadError: (Error) -> Void
         private let onSignOut: () -> Void
         private var lastAuthenticatedLoad: Date?
 
-        init(credential: Credential, onLoadError: @escaping (Error) -> Void, onSignOut: @escaping () -> Void) {
+        init(entry: URL, credential: Credential, onLoadError: @escaping (Error) -> Void, onSignOut: @escaping () -> Void) {
+            self.entry = entry
             self.credential = credential
             self.onLoadError = onLoadError
             self.onSignOut = onSignOut
@@ -51,7 +54,7 @@ struct MemoriesWebView: UIViewRepresentable {
         /// authenticates every later request from the web view.
         func loadMemories(in webView: WKWebView) {
             lastAuthenticatedLoad = .now
-            var request = URLRequest(url: ServerURL.memories(root: credential.server))
+            var request = URLRequest(url: entry)
             request.setValue(credential.authorizationHeader, forHTTPHeaderField: "Authorization")
             webView.load(request)
         }
