@@ -10,7 +10,7 @@ Cloudroll ships as a free app with a one-time Pro unlock (~$2.99). Pro covers on
 - [x] Local Nextcloud 34 + Memories test server ([dev-server.md](dev-server.md))
 - [x] **Step 1:** download Memories' signed web assets and verify them
 - [x] **Step 2:** local server and the pass-through to Nextcloud ([0003](decisions/0003-local-server.md))
-- [ ] **Step 3:** serve the Memories page from the local server and switch the app to it (Memories 9+). Older servers keep using direct mode.
+- [x] **Step 3:** serve the Memories page from the local server and switch the app to it (Memories 9+). Older servers keep using direct mode. ([0004](decisions/0004-shell-page.md)). Device-tested on 2026-10-21: thumbnails, video playback, resuming after suspension, staying signed in.
 
 ## Phase 1: Free version
 
