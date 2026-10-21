@@ -33,6 +33,8 @@ final class ShellPageTests: XCTestCase {
         XCTAssertTrue(html.contains(#"window._oc_webroot = "/nc";"#))
         XCTAssertTrue(html.contains(#"<script src="/local/assets/memories-l10n.js"></script>"#))
         XCTAssertTrue(html.contains(#"<script defer src="/local/assets/memories-main.js"></script>"#))
+        XCTAssertTrue(html.contains("user-scalable=no"))
+        XCTAssertTrue(html.contains("-webkit-user-select: none"))
         XCTAssertTrue(ShellPage.contentSecurityPolicy(nonce: "N0NCE").contains("script-src 'self' blob: 'nonce-N0NCE'"))
     }
 
