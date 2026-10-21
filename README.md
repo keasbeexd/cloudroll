@@ -4,7 +4,7 @@ An iPhone app for [Memories](https://memories.gallery), the photo gallery app fo
 
 ## Status
 
-Phase 0: the app loads Memories from your server in a web view. Native features come next. See [docs/decisions](docs/decisions).
+Phase 0: sign in with your Nextcloud account (Login Flow v2) and browse Memories in a web view. Native features come next. See [docs/decisions](docs/decisions).
 
 ## Requirements
 

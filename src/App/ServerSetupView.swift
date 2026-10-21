@@ -1,9 +1,10 @@
 import SwiftUI
 
 struct ServerSetupView: View {
-    @Binding var serverURL: String
+    let isBusy: Bool
+    let onConnect: (String) -> Void
+
     @State private var input = ""
-    @State private var error: String?
 
     var body: some View {
         NavigationStack {
@@ -14,25 +15,24 @@ struct ServerSetupView: View {
                         .textContentType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .onSubmit(connect)
+                        .onSubmit { onConnect(input) }
                 } header: {
                     Text("Nextcloud server")
                 } footer: {
-                    if let error {
-                        Text(error).foregroundStyle(.red)
+                    Text("You'll sign in on your server's page. Cloudroll never sees your password.")
+                }
+                Button {
+                    onConnect(input)
+                } label: {
+                    if isBusy {
+                        ProgressView()
+                    } else {
+                        Text("Sign in")
                     }
                 }
-                Button("Connect", action: connect)
+                .disabled(isBusy)
             }
             .navigationTitle("Cloudroll")
         }
-    }
-
-    private func connect() {
-        guard MemoriesURL.make(from: input) != nil else {
-            error = "Enter the full https:// address of your Nextcloud, e.g. https://cloud.example.com"
-            return
-        }
-        serverURL = input.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

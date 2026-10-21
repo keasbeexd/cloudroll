@@ -1,21 +1,31 @@
 import SwiftUI
 import WebKit
 
+enum SessionError: LocalizedError {
+    case appPasswordRejected
+
+    var errorDescription: String? {
+        "Nextcloud didn't accept the saved app password. It may have been revoked; sign out and sign in again."
+    }
+}
+
 struct MemoriesWebView: UIViewRepresentable {
-    let url: URL
+    let credential: Credential
     let onLoadError: (Error) -> Void
+    let onSignOut: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(host: url.host, onLoadError: onLoadError)
+        Coordinator(credential: credential, onLoadError: onLoadError, onSignOut: onSignOut)
     }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
+        config.applicationNameForUserAgent = HTTP.userAgent
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
-        webView.load(URLRequest(url: url))
+        context.coordinator.loadMemories(in: webView)
         return webView
     }
 
@@ -23,25 +33,52 @@ struct MemoriesWebView: UIViewRepresentable {
 
     @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate {
-        private let host: String?
-        private let onLoadError: (Error) -> Void
+        /// A login redirect this soon after sending the app password means it was rejected.
+        private static let rejectionWindow: TimeInterval = 10
 
-        init(host: String?, onLoadError: @escaping (Error) -> Void) {
-            self.host = host
+        private let credential: Credential
+        private let onLoadError: (Error) -> Void
+        private let onSignOut: () -> Void
+        private var lastAuthenticatedLoad: Date?
+
+        init(credential: Credential, onLoadError: @escaping (Error) -> Void, onSignOut: @escaping () -> Void) {
+            self.credential = credential
             self.onLoadError = onLoadError
+            self.onSignOut = onSignOut
         }
 
-        /// Links the user taps to other sites open in Safari; redirects (e.g. SSO login) stay in-app.
+        /// Sends the app password once; Nextcloud answers with a session cookie that
+        /// authenticates every later request from the web view.
+        func loadMemories(in webView: WKWebView) {
+            lastAuthenticatedLoad = .now
+            var request = URLRequest(url: ServerURL.memories(root: credential.server))
+            request.setValue(credential.authorizationHeader, forHTTPHeaderField: "Authorization")
+            webView.load(request)
+        }
+
         func webView(
             _ webView: WKWebView,
             decidePolicyFor action: WKNavigationAction
         ) async -> WKNavigationActionPolicy {
-            guard action.navigationType == .linkActivated,
-                  let target = action.request.url,
-                  target.host != host
-            else { return .allow }
-            await UIApplication.shared.open(target)
-            return .cancel
+            guard let target = action.request.url else { return .allow }
+
+            if target.host != credential.server.host {
+                // Links the user taps to other sites open in Safari; redirects (e.g. SSO) stay in-app.
+                guard action.navigationType == .linkActivated else { return .allow }
+                await UIApplication.shared.open(target)
+                return .cancel
+            }
+            guard action.targetFrame?.isMainFrame == true else { return .allow }
+
+            if target.path.hasSuffix("/logout") {
+                onSignOut()
+                return .cancel
+            }
+            if target.path.hasSuffix("/login") {
+                handleLoginRedirect(in: webView)
+                return .cancel
+            }
+            return .allow
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError error: Error) {
@@ -50,6 +87,15 @@ struct MemoriesWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFail _: WKNavigation!, withError error: Error) {
             report(error)
+        }
+
+        /// The web session expired: sign in again silently, unless that just failed.
+        private func handleLoginRedirect(in webView: WKWebView) {
+            if let last = lastAuthenticatedLoad, Date.now.timeIntervalSince(last) < Self.rejectionWindow {
+                onLoadError(SessionError.appPasswordRejected)
+                return
+            }
+            loadMemories(in: webView)
         }
 
         private func report(_ error: Error) {
