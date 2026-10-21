@@ -43,6 +43,7 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         ITSAppUsesNonExemptEncryption: false
+        NSPhotoLibraryUsageDescription: Cloudroll shows the photos and videos on this iPhone in your Memories timeline, next to the ones on your Nextcloud.
         # The web view loads the shell over plain http from 127.0.0.1; everything
         # leaving the device still goes over https.
         NSAppTransportSecurity:

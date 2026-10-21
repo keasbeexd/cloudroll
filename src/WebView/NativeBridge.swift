@@ -23,11 +23,13 @@ enum NativeBridgeScript {
         reload: () => location.reload(),
         downloadFromUrl: (url) => post('download', String(url)),
         setShareBlobs: (objects) => post('setShareBlobs', String(objects)),
-        configSetLocalFolders: () => {},
-        configGetLocalFolders: () => '[]',
-        configHasMediaPermission: () => false,
+        // Kept current by native code (PageState); getters must answer synchronously.
+        configSetLocalFolders: (json) => post('setLocalFolders', String(json)),
+        configGetLocalFolders: () => window.__cloudrollNative?.localFolders ?? '[]',
+        configHasMediaPermission: () => !!window.__cloudrollNative?.hasMediaPermission,
+        // PhotoKit needs no separate sync step, so indexing is always complete.
         getSyncStatus: () => -1,
-        setHasRemote: () => {},
+        setHasRemote: (auids, buids, value) => post('setHasRemote', String(auids), String(buids), !!value),
       };
     })();
     """
@@ -42,6 +44,8 @@ enum BridgeMessage: Equatable {
     case download(String)
     case setShareBlobs(String)
     case log(level: String, message: String)
+    case setLocalFolders(String)
+    case setHasRemote(auids: String, buids: String, value: Bool)
 
     /// Parses `{ method, args }` posted by the script; unknown shapes are rejected.
     init?(body: Any) {
@@ -64,6 +68,14 @@ enum BridgeMessage: Equatable {
         case "setShareBlobs":
             guard let json = args.first as? String else { return nil }
             self = .setShareBlobs(json)
+        case "setLocalFolders":
+            guard let json = args.first as? String else { return nil }
+            self = .setLocalFolders(json)
+        case "setHasRemote":
+            guard args.count == 3, let auids = args[0] as? String, let buids = args[1] as? String,
+                  let value = args[2] as? Bool
+            else { return nil }
+            self = .setHasRemote(auids: auids, buids: buids, value: value)
         case "log":
             guard let level = args.first as? String, let message = args.dropFirst().first as? String else { return nil }
             self = .log(level: level, message: message)

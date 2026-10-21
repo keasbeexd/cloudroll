@@ -27,6 +27,11 @@ struct MemoriesWebView: UIViewRepresentable {
         config.applicationNameForUserAgent = HTTP.userAgent
         if case .shell = source {
             config.userContentController.addUserScript(WKUserScript(
+                source: PageState.initialScript,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: true
+            ))
+            config.userContentController.addUserScript(WKUserScript(
                 source: NativeBridgeScript.source,
                 injectionTime: .atDocumentStart,
                 forMainFrameOnly: true
@@ -59,6 +64,9 @@ struct MemoriesWebView: UIViewRepresentable {
             context.coordinator.lockDocumentScrolling(of: webView.scrollView)
         }
         navigation.webView = webView
+        if case .shell = source {
+            PageState.shared.webView = webView
+        }
         context.coordinator.load(in: webView)
         return webView
     }
@@ -170,7 +178,7 @@ struct MemoriesWebView: UIViewRepresentable {
                 guard action.targetFrame?.isMainFrame == true else { return .allow }
                 if case .shell = source {
                     // The shell never leaves the local origin; other pages open in Safari.
-                    await UIApplication.shared.open(target)
+                    await UIApplication.shared.open(Self.iOSEquivalent(of: target))
                     return .cancel
                 }
                 // Links the user taps to other sites open in Safari; redirects (e.g. SSO) stay in-app.
@@ -212,6 +220,20 @@ struct MemoriesWebView: UIViewRepresentable {
                 }
                 return .cancel
             }
+        }
+
+        /// Memories' setup screen links the Android Nextcloud app; iPhone users need the iOS one.
+        nonisolated static func iOSEquivalent(of url: URL) -> URL {
+            guard url.host == "play.google.com",
+                  URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "id" })?.value
+                      == "com.nextcloud.client"
+            else { return url }
+            return URL(string: "https://apps.apple.com/app/nextcloud/id1125420102")!
+        }
+
+        func webView(_ webView: WKWebView, didFinish _: WKNavigation!) {
+            guard case .shell = source else { return }
+            Task { await PageState.shared.push() }
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError error: Error) {

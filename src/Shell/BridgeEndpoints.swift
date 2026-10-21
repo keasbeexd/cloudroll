@@ -2,16 +2,21 @@ import FlyingFox
 import Foundation
 
 /// The HTTP half of Memories' native API (`NAPI` in Memories' src/native/api.ts).
-/// Phone photos arrive in step 4b; until then the device reports no local photos.
 /// Endpoints that aren't implemented answer 501 so Memories shows an error instead of hanging.
 enum BridgeEndpoints {
     static let shareURLPrefix = "/api/share/url/"
 
     static func respond(to request: HTTPRequest, proxy: UpstreamProxy, localOrigin: URL) async -> HTTPResponse {
         let path = request.path
-        if path == "/api/days" || isDayPath(path) {
-            return HTTPResponse(statusCode: .ok, headers: [.contentType: "application/json"], body: Data("[]".utf8))
+        do {
+            if let response = try await respondToLocalMedia(request, path: path) {
+                return response
+            }
+        } catch {
+            DiagnosticsLog.record("bridge", "\(request.method.rawValue) \(path) -> \(error.localizedDescription)")
+            return LocalRequestHandler.plain(HTTPStatusCode(500, phrase: "Internal Server Error"), error.localizedDescription)
         }
+
         if path == "/api/share/blobs" {
             do {
                 try await ShareCenter.shared.sharePendingBlobs(using: proxy, localOrigin: localOrigin)
@@ -34,6 +39,109 @@ enum BridgeEndpoints {
         )
     }
 
+    /// Phone photos: days, day contents, previews, full images, videos, details, permission.
+    private static func respondToLocalMedia(_ request: HTTPRequest, path: String) async throws -> HTTPResponse? {
+        let library = PhotoLibrary.shared
+        if path == "/api/days" {
+            return try json(await library.days())
+        }
+        if let day = number(after: "/api/days/", in: path) {
+            return try json(await library.photos(onDay: day))
+        }
+        if let fileID = number(after: "/image/preview/", in: path) {
+            let width = Int(query("x", in: request) ?? "") ?? 256
+            let height = Int(query("y", in: request) ?? "") ?? width
+            return jpeg(try await library.previewJPEG(fileID: fileID, width: width, height: height))
+        }
+        if path.hasPrefix("/image/full/") {
+            let auid = String(path.dropFirst("/image/full/".count))
+            return jpeg(try await library.fullJPEG(auid: auid, longEdge: Int(query("size", in: request) ?? "")))
+        }
+        if let fileID = number(after: "/video/full/", in: path) {
+            return try serveFile(try await library.videoFile(fileID: fileID), range: request.headers[.range])
+        }
+        if let fileID = number(after: "/api/image/info/", in: path) {
+            let info = try await library.info(fileID: fileID)
+            let data = try JSONSerialization.data(withJSONObject: info)
+            return HTTPResponse(statusCode: .ok, headers: [.contentType: "application/json"], body: data)
+        }
+        if let allow = number(after: "/api/config/allow_media/", in: path) {
+            if allow == 1 {
+                _ = await library.requestAccess()
+            }
+            // Memories reads the permission synchronously right after this returns.
+            await PageState.shared.push()
+            return HTTPResponse(statusCode: .ok)
+        }
+        return nil
+    }
+
+    private static func json(_ value: some Encodable) throws -> HTTPResponse {
+        HTTPResponse(statusCode: .ok, headers: [.contentType: "application/json"], body: try JSONEncoder().encode(value))
+    }
+
+    private static func jpeg(_ data: Data) -> HTTPResponse {
+        HTTPResponse(
+            statusCode: .ok,
+            headers: [.contentType: "image/jpeg", HTTPHeader("Cache-Control"): "private, max-age=86400"],
+            body: data
+        )
+    }
+
+    /// Byte ranges let the web player seek without loading the whole video.
+    static func serveFile(_ file: URL, range: String?) throws -> HTTPResponse {
+        let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+        let total = (attributes[.size] as? NSNumber)?.intValue ?? 0
+        let type = file.pathExtension.lowercased() == "mp4" ? "video/mp4" : "video/quicktime"
+        guard let range, let bounds = byteRange(range, total: total) else {
+            return HTTPResponse(
+                statusCode: .ok,
+                headers: [.contentType: type, HTTPHeader("Accept-Ranges"): "bytes"],
+                body: try HTTPBodySequence(file: file)
+            )
+        }
+        return HTTPResponse(
+            statusCode: .partialContent,
+            headers: [
+                .contentType: type,
+                HTTPHeader("Accept-Ranges"): "bytes",
+                HTTPHeader("Content-Range"): "bytes \(bounds.lowerBound)-\(bounds.upperBound - 1)/\(total)",
+            ],
+            body: try HTTPBodySequence(file: file, range: bounds)
+        )
+    }
+
+    /// Parses a single "bytes=a-b", "bytes=a-" or "bytes=-n" range into a half-open range.
+    static func byteRange(_ header: String, total: Int) -> Range<Int>? {
+        guard total > 0, header.hasPrefix("bytes="), !header.contains(",") else { return nil }
+        let parts = header.dropFirst("bytes=".count).split(separator: "-", omittingEmptySubsequences: false)
+        guard parts.count == 2 else { return nil }
+        let start: Int
+        let end: Int
+        if parts[0].isEmpty {
+            guard let suffix = Int(parts[1]), suffix > 0 else { return nil }
+            start = max(total - suffix, 0)
+            end = total - 1
+        } else {
+            guard let first = Int(parts[0]) else { return nil }
+            start = first
+            end = parts[1].isEmpty ? total - 1 : min(Int(parts[1]) ?? total - 1, total - 1)
+        }
+        guard start >= 0, start <= end, start < total else { return nil }
+        return start..<(end + 1)
+    }
+
+    private static func number(after prefix: String, in path: String) -> Int? {
+        guard path.hasPrefix(prefix) else { return nil }
+        let rest = path.dropFirst(prefix.count)
+        guard !rest.isEmpty, rest.allSatisfy(\.isNumber) else { return nil }
+        return Int(rest)
+    }
+
+    private static func query(_ name: String, in request: HTTPRequest) -> String? {
+        request.query.first { $0.name == name }?.value
+    }
+
     /// Memories double-encodes the link into one path segment; only web links are shared.
     static func sharedLink(fromPath path: String) -> URL? {
         guard path.hasPrefix(shareURLPrefix),
@@ -42,11 +150,5 @@ enum BridgeEndpoints {
               ["http", "https"].contains(url.scheme?.lowercased() ?? "")
         else { return nil }
         return url
-    }
-
-    private static func isDayPath(_ path: String) -> Bool {
-        guard path.hasPrefix("/api/days/") else { return false }
-        let id = path.dropFirst("/api/days/".count)
-        return !id.isEmpty && id.allSatisfy(\.isNumber)
     }
 }

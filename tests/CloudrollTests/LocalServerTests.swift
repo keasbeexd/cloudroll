@@ -191,13 +191,15 @@ final class LocalServerTests: XCTestCase {
         XCTAssertTrue(StubUpstream.received.isEmpty)
     }
 
-    func testBridgeReportsNoLocalPhotosYet() async throws {
+    func testBridgeWithoutPhotoAccess() async throws {
         let (days, daysResponse) = try await send("/api/days")
-        let (_, otherResponse) = try await send("/api/image/info/1")
+        let (_, infoResponse) = try await send("/api/image/info/1")
+        let (_, unknownResponse) = try await send("/api/assets/progress")
 
         XCTAssertEqual(daysResponse.statusCode, 200)
         XCTAssertEqual(String(decoding: days, as: UTF8.self), "[]")
-        XCTAssertEqual(otherResponse.statusCode, 501)
+        XCTAssertEqual(infoResponse.statusCode, 500)
+        XCTAssertEqual(unknownResponse.statusCode, 501)
         XCTAssertTrue(StubUpstream.received.isEmpty)
     }
 
