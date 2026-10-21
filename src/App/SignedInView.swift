@@ -114,9 +114,11 @@ struct SignedInView: View {
                 .transition(.opacity)
             }
             toastBanner
-            if selection.state.active {
+            // Memories' dialogs (add to album, share, …) sit at the bottom; never cover them.
+            if selection.state.active && !navigation.state.overlayOpen {
                 SelectionToolbar(
                     label: selection.state.label,
+                    allFavorite: selection.state.allFavorite == true,
                     onAction: { action in Task { await perform(action) } },
                     onMore: { Task { await selection.showMore() } },
                     onCancel: { Task { await selection.cancel() } }

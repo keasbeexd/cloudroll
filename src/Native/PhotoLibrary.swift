@@ -4,6 +4,9 @@ import Photos
 import UIKit
 import UniformTypeIdentifiers
 
+/// The user declined iOS's own "delete this photo?" prompt.
+struct DeleteCancelled: Error {}
+
 struct PhotoLibraryError: LocalizedError {
     let reason: String
 
@@ -297,8 +300,12 @@ actor PhotoLibrary {
         guard !identifiers.isEmpty else { return 0 }
         let assets = PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: nil)
         guard !dry else { return assets.count }
-        try await PHPhotoLibrary.shared().performChanges {
-            PHAssetChangeRequest.deleteAssets(assets)
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                PHAssetChangeRequest.deleteAssets(assets)
+            }
+        } catch let error as PHPhotosError where error.code == .userCancelled {
+            throw DeleteCancelled()
         }
         invalidate()
         return assets.count

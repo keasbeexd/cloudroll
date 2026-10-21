@@ -8,6 +8,8 @@ struct SelectionState: Decodable, Equatable {
     let active: Bool
     /// Memories' own, translated "N selected" text.
     let label: String
+    /// Every selected photo on screen is already a favorite; absent from older scripts.
+    var allFavorite: Bool? = nil
 
     static let inactive = SelectionState(active: false, label: "")
 }

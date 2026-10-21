@@ -35,6 +35,12 @@ struct NavState: Decodable, Equatable {
 
     var selectedTab: Tab? { tabs.first { $0.matches(path) } }
 
+    /// A dialog, the viewer, the editor or settings is open (anything but selection and days).
+    var overlayOpen: Bool {
+        hash.dropFirst().split(separator: "&").map { $0.split(separator: "/").first ?? "" }
+            .contains { $0 != "day" && $0 != "s" }
+    }
+
     /// Memories encodes overlays in the fragment (`#v/…` viewer, `#s` selection, `#e` editor,
     /// `#m` modal, `#ss` settings, …). Only `#day` keeps the page itself in front.
     var showsTabBar: Bool {

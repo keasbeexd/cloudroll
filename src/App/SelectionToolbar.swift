@@ -3,6 +3,7 @@ import SwiftUI
 /// Native Liquid Glass toolbar shown while photos are selected, in place of Memories' bar.
 struct SelectionToolbar: View {
     let label: String
+    let allFavorite: Bool
     let onAction: (SelectionController.Action) -> Void
     let onMore: () -> Void
     let onCancel: () -> Void
@@ -25,11 +26,17 @@ struct SelectionToolbar: View {
 
             HStack(spacing: 0) {
                 ForEach(SelectionController.Action.allCases, id: \.self) { action in
-                    toolbarButton(action.title, symbol: action.symbol, role: action == .delete ? .destructive : nil) {
+                    let filled = action == .favorite && allFavorite
+                    toolbarButton(
+                        filled ? "Unfavorite" : action.title,
+                        symbol: filled ? "star.fill" : action.symbol,
+                        role: action == .delete ? .destructive : nil,
+                        tint: filled ? .yellow : nil
+                    ) {
                         onAction(action)
                     }
                 }
-                toolbarButton("More", symbol: "ellipsis", role: nil, action: onMore)
+                toolbarButton("More", symbol: "ellipsis", role: nil, tint: nil, action: onMore)
             }
             .padding(.horizontal, 6)
             .frame(height: 62)
@@ -39,14 +46,19 @@ struct SelectionToolbar: View {
         .padding(.bottom, 8)
     }
 
-    private func toolbarButton(_ title: String, symbol: String, role: ButtonRole?, action: @escaping () -> Void) -> some View {
+    private func toolbarButton(
+        _ title: String, symbol: String, role: ButtonRole?, tint: Color?, action: @escaping () -> Void
+    ) -> some View {
         Button(role: role, action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 19, weight: .semibold))
+                .contentTransition(.symbolEffect(.replace))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
         }
-        .foregroundStyle(role == .destructive ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
+        .foregroundStyle(
+            role == .destructive ? AnyShapeStyle(.red) : tint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary)
+        )
         .accessibilityLabel(title)
     }
 }
