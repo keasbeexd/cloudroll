@@ -61,7 +61,10 @@ final class TimelineSourceTests: XCTestCase {
         XCTAssertTrue(isMain("GET", "/nc/apps/memories/api/days", ["reverse"], webRoot: "/nc"))
         XCTAssertFalse(isMain("GET", "/index.php/apps/memories/api/days", ["albums", "monthView"]))
         XCTAssertFalse(isMain("GET", "/index.php/apps/memories/api/days", ["archive"]))
-        XCTAssertFalse(isMain("GET", "/index.php/apps/memories/api/days/123", []))
+        XCTAssertTrue(isMain("GET", "/index.php/apps/memories/api/days/20747", []))
+        XCTAssertFalse(isMain("GET", "/index.php/apps/memories/api/days/20747", ["albums"]))
+        XCTAssertFalse(isMain("GET", "/index.php/apps/memories/api/days/", []))
+        XCTAssertFalse(isMain("GET", "/index.php/apps/memories/api/daysx", []))
         XCTAssertFalse(isMain("DELETE", "/index.php/apps/memories/api/days", []))
     }
 }
