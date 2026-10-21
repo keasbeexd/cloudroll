@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Floating tab bar in place of Memories' own. Liquid Glass on iOS 26; a blurred
 /// material capsule on earlier versions. `shell-navigation.js` reserves 78px plus the
-/// safe area below Memories' scrollers: this 62pt bar, its 8pt margin and an 8pt gap.
+/// safe area below Memories' scrollers: this 62pt bar, its 8pt margin (set by the
+/// container) and an 8pt gap.
 struct GlassTabBar: View {
     let tabs: [NavState.Tab]
     let selected: NavState.Tab?
@@ -25,8 +26,6 @@ struct GlassTabBar: View {
         .padding(isCompact ? 5 : 6)
         .frame(height: isCompact ? 50 : 62)
         .modifier(GlassCapsule())
-        .padding(.horizontal, isCompact ? 0 : 24)
-        .padding(.bottom, 8)
         .animation(.spring(response: 0.38, dampingFraction: 0.78), value: selected)
         .animation(.spring(response: 0.42, dampingFraction: 0.82), value: isCompact)
         .sensoryFeedback(.selection, trigger: selected)
@@ -78,6 +77,43 @@ private struct PressScaleStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.88 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
+
+/// Round glass button next to the tab bar that switches the timeline between all photos,
+/// Nextcloud only and this iPhone only.
+struct TimelineSourceButton: View {
+    @Binding var source: TimelineSource
+
+    var body: some View {
+        Menu {
+            Picker("Show", selection: $source) {
+                ForEach(TimelineSource.allCases) { option in
+                    Label(option.title, systemImage: option.symbol).tag(option)
+                }
+            }
+        } label: {
+            Image(systemName: source.symbol)
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(source == .all ? AnyShapeStyle(.primary) : AnyShapeStyle(.tint))
+                .frame(width: 62, height: 62)
+                .contentShape(Circle())
+                .modifier(GlassCircle())
+        }
+        .accessibilityLabel("Timeline shows \(source.title)")
+        .sensoryFeedback(.selection, trigger: source)
+    }
+}
+
+private struct GlassCircle: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular.interactive(), in: .circle)
+        } else {
+            content
+                .background(.ultraThinMaterial, in: Circle())
+                .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+        }
     }
 }
 

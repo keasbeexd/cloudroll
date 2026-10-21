@@ -14,6 +14,7 @@ struct SignedInView: View {
     @State private var showsDiagnostics = false
     @State private var showsPhotoAccess = false
     @AppStorage("photoAccess.asked") private var askedForPhotoAccess = false
+    @AppStorage(TimelineSource.storageKey) private var timelineSource = TimelineSource.all
     @State private var reloadToken = UUID()
 
     var body: some View {
@@ -37,6 +38,9 @@ struct SignedInView: View {
                 .presentationDetents([.medium])
             }
             .task(id: source) { await offerPhotoAccess() }
+            .onChange(of: timelineSource) {
+                Task { await PageState.shared.refreshTimeline() }
+            }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, case .shell = source else { return }
                 Task { await resumeShell() }
@@ -96,14 +100,24 @@ struct SignedInView: View {
             }
             toastBanner
             if navigation.state.showsTabBar {
-                GlassTabBar(
-                    tabs: navigation.state.tabs,
-                    selected: navigation.highlightedTab,
-                    isCompact: navigation.state.collapsed == true,
-                    onSelect: navigation.select,
-                    onExpand: navigation.expand,
-                    onLongPress: { showsDiagnostics = true }
-                )
+                HStack(spacing: 10) {
+                    GlassTabBar(
+                        tabs: navigation.state.tabs,
+                        selected: navigation.highlightedTab,
+                        isCompact: navigation.state.collapsed == true,
+                        onSelect: navigation.select,
+                        onExpand: navigation.expand,
+                        onLongPress: { showsDiagnostics = true }
+                    )
+                    // Only the main timeline is filtered, so the switch lives on the Photos tab.
+                    if navigation.highlightedTab?.href.hasSuffix("/") == true {
+                        TimelineSourceButton(source: $timelineSource)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .padding(.horizontal, navigation.state.collapsed == true ? 0 : 16)
+                .padding(.bottom, 8)
+                .animation(.spring(response: 0.38, dampingFraction: 0.8), value: navigation.highlightedTab)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }

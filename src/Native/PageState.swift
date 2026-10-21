@@ -48,6 +48,14 @@ final class PageState {
         }
     }
 
+    /// Server and phone days are both cached by Memories, so a source change needs a hard refresh.
+    func refreshTimeline() async {
+        await evaluate("""
+        window._nc_event_bus?.emit('nativex:db:updated', null);
+        window._nc_event_bus?.emit('memories:timeline:hard-refresh', null)
+        """)
+    }
+
     /// After access is first granted the timeline has to fetch days again.
     func reloadPage() {
         webView?.reload()
