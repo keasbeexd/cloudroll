@@ -13,6 +13,7 @@ struct MemoriesWebView: UIViewRepresentable {
     let source: MemoriesSource
     let credential: Credential
     let navigation: WebNavigation
+    let selection: SelectionController
     let onLoadError: (Error) -> Void
     let onSignOut: () -> Void
     let onBridgeMessage: (BridgeMessage) -> Void
@@ -37,7 +38,7 @@ struct MemoriesWebView: UIViewRepresentable {
                 forMainFrameOnly: true
             ))
             do {
-                for name in ["shell-diagnostics", "shell-navigation"] {
+                for name in ["shell-diagnostics", "shell-navigation", "shell-selection"] {
                     config.userContentController.addUserScript(WKUserScript(
                         source: try WebNavigation.bundledScript(name),
                         injectionTime: .atDocumentStart,
@@ -64,6 +65,7 @@ struct MemoriesWebView: UIViewRepresentable {
             context.coordinator.lockDocumentScrolling(of: webView.scrollView)
         }
         navigation.webView = webView
+        selection.webView = webView
         if case .shell = source {
             PageState.shared.webView = webView
         }

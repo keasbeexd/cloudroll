@@ -11,6 +11,7 @@ struct SignedInView: View {
     @State private var toast: String?
     @State private var themeColor: Color?
     @State private var navigation = WebNavigation()
+    @State private var selection = SelectionController()
     @State private var showsDiagnostics = false
     @State private var showsPhotoAccess = false
     @AppStorage("photoAccess.asked") private var askedForPhotoAccess = false
@@ -38,6 +39,19 @@ struct SignedInView: View {
                 .presentationDetents([.medium])
             }
             .task(id: source) { await offerPhotoAccess() }
+            .confirmationDialog(
+                deleteQuestion,
+                isPresented: Binding(
+                    get: { DeleteChoiceCenter.shared.pendingCount != nil },
+                    set: { if !$0 { answerDelete(.cancel) } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Delete from This iPhone and Nextcloud", role: .destructive) { answerDelete(.both) }
+                Button("Delete from Nextcloud Only", role: .destructive) { answerDelete(.cloudOnly) }
+                Button("Delete from This iPhone Only", role: .destructive) { answerDelete(.phoneOnly) }
+                Button("Cancel", role: .cancel) { answerDelete(.cancel) }
+            }
             .onChange(of: timelineSource) {
                 Task { await PageState.shared.refreshTimeline() }
             }
@@ -70,6 +84,7 @@ struct SignedInView: View {
                 source: source,
                 credential: credential,
                 navigation: navigation,
+                selection: selection,
                 onLoadError: { loadError = $0.localizedDescription },
                 onSignOut: onSignOut,
                 onBridgeMessage: handle
@@ -99,7 +114,15 @@ struct SignedInView: View {
                 .transition(.opacity)
             }
             toastBanner
-            if navigation.state.showsTabBar {
+            if selection.state.active {
+                SelectionToolbar(
+                    label: selection.state.label,
+                    onAction: { action in Task { await perform(action) } },
+                    onMore: { Task { await selection.showMore() } },
+                    onCancel: { Task { await selection.cancel() } }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else if navigation.state.showsTabBar {
                 HStack(spacing: 10) {
                     GlassTabBar(
                         tabs: navigation.state.tabs,
@@ -122,6 +145,7 @@ struct SignedInView: View {
             }
         }
         .animation(.smooth(duration: 0.25), value: navigation.state.showsTabBar)
+        .animation(.smooth(duration: 0.25), value: selection.state.active)
     }
 
     @ViewBuilder
@@ -180,6 +204,8 @@ struct SignedInView: View {
             onSignOut()
         case .navState(let state):
             navigation.update(state)
+        case .selection(let state):
+            selection.update(state)
         case .log(let level, let message):
             DiagnosticsLog.shared.add("page/\(level)", message)
         case .setLocalFolders(let json):
@@ -194,6 +220,29 @@ struct SignedInView: View {
             } catch {
                 toast = error.localizedDescription
             }
+        }
+    }
+
+    private var deleteQuestion: String {
+        let count = DeleteChoiceCenter.shared.pendingCount ?? 0
+        return count == 1
+            ? "This photo is on this iPhone and on Nextcloud."
+            : "\(count) of these photos are on this iPhone and on Nextcloud."
+    }
+
+    private func answerDelete(_ choice: DeleteChoice) {
+        guard DeleteChoiceCenter.shared.pendingCount != nil else { return }
+        DeleteChoiceCenter.shared.answer(choice)
+        // Memories stops its flow for these, leaving the photos selected.
+        if choice == .phoneOnly || choice == .cancel {
+            Task { await selection.cancel() }
+        }
+    }
+
+    private func perform(_ action: SelectionController.Action) async {
+        guard await selection.perform(action) else {
+            toast = "\(action.title) isn't available here."
+            return
         }
     }
 

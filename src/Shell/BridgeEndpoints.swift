@@ -76,13 +76,7 @@ enum BridgeEndpoints {
                 .map { String($0).trimmingCharacters(in: CharacterSet(charactersIn: "/")) }
                 .filter { !$0.isEmpty }
             let dry = ["1", "true"].contains(query("dry", in: request) ?? "")
-            let count = try await library.delete(auids: auids, dry: dry)
-            // iOS shows its own confirmation, so Memories can skip its dialog.
-            let body = try JSONSerialization.data(withJSONObject: ["message": "ok", "count": count, "confirms": true])
-            if !dry, count > 0 {
-                await PageState.shared.libraryChanged()
-            }
-            return HTTPResponse(statusCode: .ok, headers: [.contentType: "application/json"], body: body)
+            return try await deleteLocal(auids: auids, dry: dry)
         }
         if let allow = number(after: "/api/config/allow_media/", in: path) {
             if allow == 1 {
@@ -93,6 +87,61 @@ enum BridgeEndpoints {
             return HTTPResponse(statusCode: .ok)
         }
         return nil
+    }
+
+    /// Memories' `IMAGE_DELETE`. On the dry run, photos that are on both this iPhone and
+    /// Nextcloud trigger the native "delete where?" question (see DeleteChoiceCenter).
+    private static func deleteLocal(auids: [String], dry: Bool) async throws -> HTTPResponse {
+        let library = PhotoLibrary.shared
+        let choices = DeleteChoiceCenter.shared
+        if dry {
+            let onBoth = await library.countOnBoth(auids: auids)
+            if onBoth > 0 {
+                switch await choices.ask(count: onBoth) {
+                case .both:
+                    break
+                case .cloudOnly:
+                    await MainActor.run { choices.skipNextPhoneDelete = true }
+                case .phoneOnly:
+                    if try await library.delete(auids: auids, dry: false) > 0 {
+                        await PageState.shared.libraryChanged()
+                    }
+                    return aborted("Deleted on this iPhone only.")
+                case .cancel:
+                    return aborted("Cancelled.")
+                }
+            }
+        } else if await MainActor.run(body: { choices.skipNextPhoneDelete }) {
+            await MainActor.run { choices.skipNextPhoneDelete = false }
+            // Memories hides phone-only photos it believes were deleted; bring them back.
+            Task {
+                do {
+                    try await Task.sleep(for: .seconds(2))
+                } catch {
+                    return // Cancelled; nothing to restore.
+                }
+                await PageState.shared.libraryChanged()
+            }
+            return try deleteResponse(count: 0)
+        }
+
+        let count = try await library.delete(auids: auids, dry: dry)
+        if !dry, count > 0 {
+            await PageState.shared.libraryChanged()
+        }
+        return try deleteResponse(count: count)
+    }
+
+    /// iOS shows its own confirmation, so Memories can skip its dialog.
+    private static func deleteResponse(count: Int) throws -> HTTPResponse {
+        let body = try JSONSerialization.data(withJSONObject: ["message": "ok", "count": count, "confirms": true])
+        return HTTPResponse(statusCode: .ok, headers: [.contentType: "application/json"], body: body)
+    }
+
+    /// Memories stops its delete flow, before touching the server, when the dry run fails.
+    private static func aborted(_ reason: String) -> HTTPResponse {
+        DiagnosticsLog.record("bridge", "Delete stopped before the server: \(reason)")
+        return LocalRequestHandler.plain(HTTPStatusCode(409, phrase: "Conflict"), reason)
     }
 
     /// Memories' `UPLOAD_LOCAL`: uploads a phone photo's original to `filename` in the user's files.

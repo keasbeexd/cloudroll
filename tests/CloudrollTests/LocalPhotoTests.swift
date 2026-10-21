@@ -78,3 +78,30 @@ final class UploadPathTests: XCTestCase {
         }
     }
 }
+
+final class SelectionTests: XCTestCase {
+    func testBridgeParsesSelectionState() {
+        XCTAssertEqual(
+            BridgeMessage(body: ["method": "selection", "args": [#"{"active":true,"label":"3 selected"}"#]]),
+            .selection(SelectionState(active: true, label: "3 selected"))
+        )
+        XCTAssertNil(BridgeMessage(body: ["method": "selection", "args": ["{}"]]))
+    }
+
+    func testDeleteFallsBackToRemoveFromAlbum() {
+        XCTAssertEqual(SelectionController.Action.delete.icons, ["trash-can-outline-icon", "book-remove-icon"])
+    }
+
+    @MainActor
+    func testDeleteChoiceResolvesTheWaitingRequest() async {
+        let center = DeleteChoiceCenter()
+        async let choice = center.ask(count: 2)
+        await Task.yield()
+        while center.pendingCount == nil { await Task.yield() }
+        XCTAssertEqual(center.pendingCount, 2)
+        center.answer(.cloudOnly)
+        let result = await choice
+        XCTAssertEqual(result, .cloudOnly)
+        XCTAssertNil(center.pendingCount)
+    }
+}
