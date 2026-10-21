@@ -55,7 +55,9 @@ struct SignedInView: View {
                 onBridgeMessage: handle
             )
             .id(reloadToken)
-            .ignoresSafeArea(edges: .bottom)
+            // Only the home-indicator area is ignored: the keyboard still shrinks the view,
+            // so bottom sheets sit on top of it instead of WebKit panning the page.
+            .ignoresSafeArea(.container, edges: .bottom)
         } else {
             VStack(spacing: 12) {
                 ProgressView()

@@ -48,6 +48,14 @@ struct MemoriesWebView: UIViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
+        // The theme colour behind the view shows instead of WebKit's white.
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.underPageBackgroundColor = .clear
+        if case .shell = source {
+            context.coordinator.lockDocumentScrolling(of: webView.scrollView)
+        }
         navigation.webView = webView
         context.coordinator.load(in: webView)
         return webView
@@ -70,6 +78,7 @@ struct MemoriesWebView: UIViewRepresentable {
         private let onSignOut: () -> Void
         private let onBridgeMessage: (BridgeMessage) -> Void
         private var lastAuthenticatedLoad: Date?
+        private var offsetObservation: NSKeyValueObservation?
 
         init(
             source: MemoriesSource,
@@ -114,6 +123,22 @@ struct MemoriesWebView: UIViewRepresentable {
             var request = URLRequest(url: entry)
             request.setValue(credential.authorizationHeader, forHTTPHeaderField: "Authorization")
             webView.load(request)
+        }
+
+        /// Memories scrolls inside its own panels, never the page. WebKit pans the page to
+        /// reveal focused inputs and often leaves it shifted after the keyboard closes, which
+        /// pushed bottom sheets off-screen; the page offset is pinned to zero instead, and the
+        /// view itself is resized above the keyboard (see SignedInView).
+        func lockDocumentScrolling(of scrollView: UIScrollView) {
+            scrollView.contentInsetAdjustmentBehavior = .never
+            scrollView.bounces = false
+            offsetObservation = scrollView.observe(\.contentOffset, options: [.new]) { scrollView, _ in
+                MainActor.assumeIsolated {
+                    if scrollView.contentOffset != .zero {
+                        scrollView.contentOffset = .zero
+                    }
+                }
+            }
         }
 
         func receive(_ message: WKScriptMessage) {
