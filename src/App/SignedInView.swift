@@ -12,6 +12,8 @@ struct SignedInView: View {
     @State private var themeColor: Color?
     @State private var navigation = WebNavigation()
     @State private var showsDiagnostics = false
+    @State private var showsPhotoAccess = false
+    @AppStorage("photoAccess.asked") private var askedForPhotoAccess = false
     @State private var reloadToken = UUID()
 
     var body: some View {
@@ -25,6 +27,16 @@ struct SignedInView: View {
             .sheet(isPresented: $showsDiagnostics) {
                 DiagnosticsView(source: source)
             }
+            .sheet(isPresented: $showsPhotoAccess) {
+                PhotoAccessView { allow in
+                    showsPhotoAccess = false
+                    askedForPhotoAccess = true
+                    guard allow else { return }
+                    Task { await grantPhotoAccess() }
+                }
+                .presentationDetents([.medium])
+            }
+            .task(id: source) { await offerPhotoAccess() }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, case .shell = source else { return }
                 Task { await resumeShell() }
@@ -156,6 +168,10 @@ struct SignedInView: View {
             navigation.update(state)
         case .log(let level, let message):
             DiagnosticsLog.shared.add("page/\(level)", message)
+        case .setLocalFolders(let json):
+            Task { await setLocalFolders(json) }
+        case .setHasRemote(let auids, let buids, let value):
+            Task { await setHasRemote(auids: auids, buids: buids, value: value) }
         case .download(let href):
             Task { await download(href) }
         case .setShareBlobs(let json):
@@ -164,6 +180,44 @@ struct SignedInView: View {
             } catch {
                 toast = error.localizedDescription
             }
+        }
+    }
+
+    /// Asked once, after Memories has loaded from the local shell.
+    private func offerPhotoAccess() async {
+        guard case .shell = source, !askedForPhotoAccess, PhotoLibrary.isUndetermined else { return }
+        do {
+            try await Task.sleep(for: .seconds(1.5))
+        } catch {
+            return // The view changed before the prompt was due.
+        }
+        showsPhotoAccess = true
+    }
+
+    private func grantPhotoAccess() async {
+        guard await PhotoLibrary.shared.requestAccess() else { return }
+        await PageState.shared.push()
+        // The timeline already loaded without phone photos.
+        PageState.shared.reloadPage()
+    }
+
+    private func setLocalFolders(_ json: String) async {
+        do {
+            let folders = try JSONDecoder().decode([LocalFolder].self, from: Data(json.utf8))
+            await PhotoLibrary.shared.setFolders(folders)
+            await PageState.shared.push()
+            await PageState.shared.libraryChanged()
+        } catch {
+            toast = "Couldn't save the album choice: \(error.localizedDescription)"
+        }
+    }
+
+    private func setHasRemote(auids: String, buids: String, value: Bool) async {
+        do {
+            let decode = { (json: String) in try JSONDecoder().decode([String].self, from: Data(json.utf8)) }
+            await PhotoLibrary.shared.setHasRemote(auids: try decode(auids), buids: try decode(buids), value: value)
+        } catch {
+            DiagnosticsLog.shared.add("native", "Memories sent unreadable backup markers: \(error.localizedDescription)")
         }
     }
 
