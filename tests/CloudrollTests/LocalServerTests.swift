@@ -211,18 +211,24 @@ final class LocalServerTests: XCTestCase {
 
     /// Albums and public links use WebDAV and OCS; they must reach Nextcloud unchanged.
     func testForwardsWebDAVAndOCSRequests() async throws {
-        _ = try await send("/remote.php/dav/photos/alice/albums/Trip", method: "MKCOL")
         let xml = Data(#"<?xml version="1.0"?><d:propertyupdate xmlns:d="DAV:"/>"#.utf8)
-        _ = try await send("/remote.php/dav/photos/alice/albums/Trip", method: "PROPPATCH", body: xml)
-        _ = try await send("/ocs/v2.php/apps/files_sharing/api/v1/shares?format=json", method: "POST", body: Data("path=/x".utf8))
+        var outcomes: [String] = []
+        for (method, target, body) in [
+            ("MKCOL", "/remote.php/dav/photos/alice/albums/Trip", nil),
+            ("PROPPATCH", "/remote.php/dav/photos/alice/albums/Trip", xml),
+            ("POST", "/ocs/v2.php/apps/files_sharing/api/v1/shares?format=json", Data("path=/x".utf8)),
+        ] as [(String, String, Data?)] {
+            let (data, response) = try await send(target, method: method, body: body)
+            outcomes.append("\(method) -> \(response.statusCode) \(String(decoding: data.prefix(200), as: UTF8.self))")
+        }
 
-        XCTAssertEqual(StubUpstream.received.map(\.method), ["MKCOL", "PROPPATCH", "POST"])
-        XCTAssertEqual(StubUpstream.received.map(\.url.path), [
+        let received = StubUpstream.received
+        XCTAssertEqual(received.map(\.method), ["MKCOL", "PROPPATCH", "POST"], "local server answered: \(outcomes)")
+        XCTAssertEqual(received.map(\.url.path), [
             "/remote.php/dav/photos/alice/albums/Trip",
             "/remote.php/dav/photos/alice/albums/Trip",
             "/ocs/v2.php/apps/files_sharing/api/v1/shares",
         ])
-        XCTAssertEqual(StubUpstream.received[1].body, xml)
+        XCTAssertEqual(received.dropFirst().first?.body, xml)
     }
 }
-
