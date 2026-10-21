@@ -1,23 +1,36 @@
 import SwiftUI
+import UIKit
 
 struct SignedInView: View {
     let credential: Credential
     let onSignOut: () -> Void
 
-    @State private var entry: URL?
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var source: MemoriesSource?
     @State private var loadError: String?
+    @State private var toast: String?
+    @State private var themeColor: Color?
+    @State private var isDarkTheme: Bool?
     @State private var reloadToken = UUID()
 
     var body: some View {
         content
-            .task(id: reloadToken) { await resolveEntry() }
+            .background((themeColor ?? Color(.systemBackground)).ignoresSafeArea())
+            .preferredColorScheme(isDarkTheme.map { $0 ? .dark : .light })
+            .overlay(alignment: .bottom) { toastBanner }
+            .task(id: reloadToken) { await prepare() }
+            .task(id: toast) { await dismissToastLater() }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active, case .shell = source else { return }
+                Task { await resumeShell() }
+            }
             .alert("Couldn't load Memories", isPresented: Binding(
                 get: { loadError != nil },
                 set: { if !$0 { loadError = nil } }
             )) {
                 Button("Retry") {
                     loadError = nil
-                    entry = nil
+                    source = nil
                     reloadToken = UUID()
                 }
                 Button("Sign out", role: .destructive) {
@@ -31,28 +44,99 @@ struct SignedInView: View {
 
     @ViewBuilder
     private var content: some View {
-        if let entry {
+        if let source {
             MemoriesWebView(
-                entry: entry,
+                source: source,
                 credential: credential,
                 onLoadError: { loadError = $0.localizedDescription },
-                onSignOut: onSignOut
+                onSignOut: onSignOut,
+                onBridgeMessage: handle
             )
             .id(reloadToken)
             .ignoresSafeArea(edges: .bottom)
         } else {
-            ProgressView()
+            VStack(spacing: 12) {
+                ProgressView()
+                Text("Preparing Memories…").foregroundStyle(.secondary)
+            }
         }
     }
 
-    private func resolveEntry() async {
-        guard entry == nil else { return }
+    @ViewBuilder
+    private var toastBanner: some View {
+        if let toast {
+            Text(toast)
+                .font(.callout)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.regularMaterial, in: Capsule())
+                .padding(.bottom, 32)
+                .transition(.opacity)
+        }
+    }
+
+    private func prepare() async {
+        guard source == nil else { return }
         do {
-            entry = try await NextcloudAPI.describeMemories(server: credential.server).entry(for: credential.server)
+            let prepared = try await ShellHost.shared.prepare(credential)
+            source = prepared.source
+            toast = prepared.notice
         } catch is CancellationError {
             // The view went away or a retry started a new attempt.
         } catch {
             loadError = error.localizedDescription
         }
+    }
+
+    private func resumeShell() async {
+        do {
+            try await ShellHost.shared.resume()
+        } catch {
+            loadError = "The local Memories server couldn't restart: \(error.localizedDescription)"
+        }
+    }
+
+    private func dismissToastLater() async {
+        guard toast != nil else { return }
+        do {
+            try await Task.sleep(for: .seconds(3))
+        } catch {
+            return // A newer toast replaced this one.
+        }
+        withAnimation { toast = nil }
+    }
+
+    private func handle(_ message: BridgeMessage) {
+        switch message {
+        case .setThemeColor(let css, let isDark):
+            themeColor = Color(cssHex: css)
+            isDarkTheme = isDark
+        case .vibrate:
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        case .toast(let text):
+            toast = text
+        case .unsupported(let feature):
+            toast = "\(feature) isn't available in Cloudroll yet."
+        case .logout:
+            onSignOut()
+        }
+    }
+}
+
+extension Color {
+    /// Parses "#rgb" or "#rrggbb", the forms Nextcloud's theme variables use.
+    init?(cssHex value: String) {
+        var hex = value.trimmingCharacters(in: .whitespaces)
+        guard hex.hasPrefix("#") else { return nil }
+        hex.removeFirst()
+        if hex.count == 3 {
+            hex = hex.map { "\($0)\($0)" }.joined()
+        }
+        guard hex.count == 6, let rgb = UInt32(hex, radix: 16) else { return nil }
+        self.init(
+            red: Double((rgb >> 16) & 0xFF) / 255,
+            green: Double((rgb >> 8) & 0xFF) / 255,
+            blue: Double(rgb & 0xFF) / 255
+        )
     }
 }

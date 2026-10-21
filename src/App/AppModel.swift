@@ -45,6 +45,7 @@ final class AppModel {
             return
         }
         self.credential = nil
+        await ShellHost.shared.stop()
         // Drop the web session cookie so the next account starts clean.
         await WKWebsiteDataStore.default().removeData(
             ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),

@@ -57,6 +57,7 @@ struct LocalRequestHandler: HTTPHandler {
     /// Verified asset snapshot from `AssetStore`.
     let assetDirectory: URL
     let proxy: UpstreamProxy
+    let shell: ShellConfig
 
     func handleRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
         let cookies = request.headers.values(for: .cookie).joined(separator: "; ")
@@ -64,22 +65,34 @@ struct LocalRequestHandler: HTTPHandler {
             return HTTPResponse(statusCode: .forbidden)
         }
 
-        switch LocalRouter.route(path: request.path) {
+        let accept = request.headers[HTTPHeader("Accept")] ?? ""
+        let wantsDocument = accept.contains("text/html") || request.headers[HTTPHeader("Sec-Fetch-Dest")] == "document"
+        let router = LocalRouter(webRoot: shell.webRoot)
+        switch router.route(method: request.method.rawValue, path: request.path, wantsDocument: wantsDocument) {
+        case .shell:
+            return serveShell()
         case .asset(let name):
             return try serveAsset(name)
+        case .bridge:
+            return BridgeEndpoints.respond(to: request)
         case .notFound:
             return HTTPResponse(statusCode: .notFound)
         case .proxy:
-            do {
-                return try await proxy.forward(request)
-            } catch {
-                return HTTPResponse(
-                    statusCode: .badGateway,
-                    headers: [.contentType: "text/plain; charset=utf-8"],
-                    body: Data(error.localizedDescription.utf8)
-                )
-            }
+            return await forward(request)
         }
+    }
+
+    private func serveShell() -> HTTPResponse {
+        let nonce = ShellPage.randomNonce()
+        return HTTPResponse(
+            statusCode: .ok,
+            headers: [
+                .contentType: "text/html; charset=utf-8",
+                HTTPHeader("Content-Security-Policy"): ShellPage.contentSecurityPolicy(nonce: nonce),
+                HTTPHeader("Cache-Control"): "no-store",
+            ],
+            body: Data(ShellPage.html(shell, nonce: nonce).utf8)
+        )
     }
 
     private func serveAsset(_ name: String) throws -> HTTPResponse {
@@ -92,6 +105,26 @@ struct LocalRequestHandler: HTTPHandler {
             headers: [.contentType: Self.contentType(for: file.pathExtension)],
             body: try HTTPBodySequence(file: file)
         )
+    }
+
+    /// Memories treats 504 as "offline", so unreachable servers map to it.
+    private func forward(_ request: HTTPRequest) async -> HTTPResponse {
+        do {
+            return try await proxy.forward(request)
+        } catch let error as URLError where Self.offlineCodes.contains(error.code) {
+            return Self.plain(HTTPStatusCode(504, phrase: "Gateway Timeout"), error.localizedDescription)
+        } catch {
+            return Self.plain(.badGateway, error.localizedDescription)
+        }
+    }
+
+    private static let offlineCodes: Set<URLError.Code> = [
+        .notConnectedToInternet, .timedOut, .cannotConnectToHost, .cannotFindHost,
+        .networkConnectionLost, .dnsLookupFailed, .dataNotAllowed,
+    ]
+
+    static func plain(_ status: HTTPStatusCode, _ message: String) -> HTTPResponse {
+        HTTPResponse(statusCode: status, headers: [.contentType: "text/plain; charset=utf-8"], body: Data(message.utf8))
     }
 
     static func contentType(for pathExtension: String) -> String {
