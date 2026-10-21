@@ -28,6 +28,8 @@ targets:
         buildPhase: resources
       - path: ../src/WebView/shell-diagnostics.js
         buildPhase: resources
+      - path: ../src/WebView/shell-selection.js
+        buildPhase: resources
     dependencies:
       - package: FlyingFox
         product: FlyingFox

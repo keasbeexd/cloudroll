@@ -285,6 +285,11 @@ actor PhotoLibrary {
         return data
     }
 
+    /// How many of these AUIDs are phone photos that are also on Nextcloud.
+    func countOnBoth(auids requested: [String]) -> Int {
+        requested.filter { auids[$0] != nil && hasRemote.contains($0) }.count
+    }
+
     /// Deletes phone photos by AUID; iOS asks the user to confirm. A dry run only counts
     /// which of them are on this phone (Memories' `IMAGE_DELETE`).
     func delete(auids requested: [String], dry: Bool) async throws -> Int {

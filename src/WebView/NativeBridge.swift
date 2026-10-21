@@ -45,6 +45,7 @@ enum BridgeMessage: Equatable {
     case setShareBlobs(String)
     case log(level: String, message: String)
     case setLocalFolders(String)
+    case selection(SelectionState)
     case setHasRemote(auids: String, buids: String, value: Bool)
 
     /// Parses `{ method, args }` posted by the script; unknown shapes are rejected.
@@ -68,6 +69,11 @@ enum BridgeMessage: Equatable {
         case "setShareBlobs":
             guard let json = args.first as? String else { return nil }
             self = .setShareBlobs(json)
+        case "selection":
+            guard let json = args.first as? String,
+                  let state = try? JSONDecoder().decode(SelectionState.self, from: Data(json.utf8))
+            else { return nil }
+            self = .selection(state)
         case "setLocalFolders":
             guard let json = args.first as? String else { return nil }
             self = .setLocalFolders(json)
