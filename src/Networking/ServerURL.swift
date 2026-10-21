@@ -19,6 +19,7 @@ enum ServerURL {
 
     /// `/index.php/` works with and without pretty URLs enabled on the server.
     static func memories(root: URL) -> URL {
-        root.appending(path: "index.php/apps/memories/")
+        // A trailing slash in the path string plus the inferred directory hint yields "//".
+        root.appending(path: "index.php/apps/memories", directoryHint: .isDirectory)
     }
 }
