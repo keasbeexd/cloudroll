@@ -17,9 +17,10 @@ enum ServerURL {
         return components.url
     }
 
-    /// `/index.php/` works with and without pretty URLs enabled on the server.
-    static func memories(root: URL) -> URL {
-        // A trailing slash in the path string plus the inferred directory hint yields "//".
-        root.appending(path: "index.php/apps/memories", directoryHint: .isDirectory)
+    /// `/index.php/` works with and without pretty URLs enabled on the server. The web UI
+    /// itself must be opened at the `baseUrl` this returns, because the Memories router
+    /// only matches the form the server generates.
+    static func memoriesDescribe(root: URL) -> URL {
+        root.appending(path: "index.php/apps/memories/api/describe")
     }
 }
