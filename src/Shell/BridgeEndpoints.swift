@@ -65,6 +65,17 @@ enum BridgeEndpoints {
             let data = try JSONSerialization.data(withJSONObject: info)
             return HTTPResponse(statusCode: .ok, headers: [.contentType: "application/json"], body: data)
         }
+        if path.hasPrefix("/api/image/delete/") {
+            let auids = path.dropFirst("/api/image/delete/".count).split(separator: ",").map(String.init)
+            let dry = ["1", "true"].contains(query("dry", in: request) ?? "")
+            let count = try await library.delete(auids: auids, dry: dry)
+            // iOS shows its own confirmation, so Memories can skip its dialog.
+            let body = try JSONSerialization.data(withJSONObject: ["message": "ok", "count": count, "confirms": true])
+            if !dry, count > 0 {
+                await PageState.shared.libraryChanged()
+            }
+            return HTTPResponse(statusCode: .ok, headers: [.contentType: "application/json"], body: body)
+        }
         if let allow = number(after: "/api/config/allow_media/", in: path) {
             if allow == 1 {
                 _ = await library.requestAccess()
