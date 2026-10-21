@@ -23,14 +23,17 @@ struct ShellConfig: Sendable {
 /// Stands in for the page Nextcloud would render around Memories. Memories' native
 /// mode needs only a few globals plus its own scripts; stylesheets load through the proxy.
 enum ShellPage {
-    static func html(_ config: ShellConfig, nonce: String) -> String {
+    /// Without `requestToken` Memories still works: its first API call fails the CSRF
+    /// check and it fetches a token itself, costing one round trip.
+    static func html(_ config: ShellConfig, nonce: String, requestToken: String? = nil) -> String {
         let userAttribute = config.user.map { " data-user=\"\(escapeHTML($0))\"" } ?? ""
+        let tokenAttribute = requestToken.map { " data-requesttoken=\"\(escapeHTML($0))\"" } ?? ""
         let stylesheets = config.stylesheets.compactMap(linkTag).joined(separator: "\n    ")
         let webRoot = jsString(config.webRoot)
         return """
         <!DOCTYPE html>
         <html>
-        <head\(userAttribute)>
+        <head\(userAttribute)\(tokenAttribute)>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
             <title>Memories</title>

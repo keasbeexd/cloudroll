@@ -59,7 +59,7 @@ final class ShellPageTests: XCTestCase {
     }
 
     func testJSStringEscapesQuotesAndTags() {
-        XCTAssertEqual(ShellPage.jsString(#"a"b\c</x>"#), #""a\"b\\c</x>""#)
+        XCTAssertEqual(ShellPage.jsString(#"a"b\c</x>"#), #""a\"b\\c\u003c/x\u003e""#)
     }
 
     func testBridgeMessageParsing() {
@@ -77,4 +77,14 @@ final class ShellPageTests: XCTestCase {
         XCTAssertNil(Color(cssHex: "rgb(0, 0, 0)"))
         XCTAssertNil(Color(cssHex: "#12345"))
     }
+
+    func testScriptBaseFromServerPage() throws {
+        let server = try XCTUnwrap(URL(string: "https://a.example/nc"))
+        let page = #"<script nonce="x" defer src="/nc/custom_apps/memories/js/memories-main.js?v=ee40aaf9-0"></script>"#
+
+        XCTAssertEqual(MemoriesScripts.base(inPage: page, server: server)?.absoluteString, "https://a.example/nc/custom_apps/memories/js/")
+        XCTAssertNil(MemoriesScripts.base(inPage: #"<script src="//evil.example/memories-main.js">"#, server: server))
+        XCTAssertNil(MemoriesScripts.base(inPage: "<html></html>", server: server))
+    }
 }
+

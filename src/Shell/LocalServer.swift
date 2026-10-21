@@ -1,6 +1,7 @@
 import FlyingFox
 import FlyingSocks
 import Foundation
+import OSLog
 
 /// Serves the Memories shell from 127.0.0.1 and forwards everything else to Nextcloud,
 /// so the web UI and its native bridge share one origin (see docs/decisions/0001).
@@ -53,6 +54,8 @@ actor LocalServer {
 }
 
 struct LocalRequestHandler: HTTPHandler {
+    private static let log = Logger(subsystem: "app.cloudroll", category: "shell")
+
     let authGuard: LocalAuthGuard
     /// Verified asset snapshot from `AssetStore`.
     let assetDirectory: URL
@@ -70,7 +73,7 @@ struct LocalRequestHandler: HTTPHandler {
         let router = LocalRouter(webRoot: shell.webRoot)
         switch router.route(method: request.method.rawValue, path: request.path, wantsDocument: wantsDocument) {
         case .shell:
-            return serveShell()
+            return await serveShell()
         case .asset(let name):
             return try serveAsset(name)
         case .bridge:
@@ -82,8 +85,16 @@ struct LocalRequestHandler: HTTPHandler {
         }
     }
 
-    private func serveShell() -> HTTPResponse {
+    private func serveShell() async -> HTTPResponse {
         let nonce = ShellPage.randomNonce()
+        let token: String?
+        do {
+            token = try await proxy.requestToken(webRoot: shell.webRoot)
+        } catch {
+            // The page still renders from the snapshot; Memories fetches a token itself later.
+            Self.log.notice("Shell rendered without a request token: \(error.localizedDescription, privacy: .public)")
+            token = nil
+        }
         return HTTPResponse(
             statusCode: .ok,
             headers: [
@@ -91,7 +102,7 @@ struct LocalRequestHandler: HTTPHandler {
                 HTTPHeader("Content-Security-Policy"): ShellPage.contentSecurityPolicy(nonce: nonce),
                 HTTPHeader("Cache-Control"): "no-store",
             ],
-            body: Data(ShellPage.html(shell, nonce: nonce).utf8)
+            body: Data(ShellPage.html(shell, nonce: nonce, requestToken: token).utf8)
         )
     }
 

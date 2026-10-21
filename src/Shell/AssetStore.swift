@@ -32,7 +32,7 @@ struct AssetStore {
     }
 
     /// Returns the directory holding every asset, downloading the snapshot if needed.
-    func snapshot(for assets: [WebAsset], server: URL) async throws -> URL {
+    func snapshot(for assets: [WebAsset], scriptBase: URL) async throws -> URL {
         let id = Self.snapshotID(for: assets)
         let final = root.appending(path: id, directoryHint: .isDirectory)
         if FileManager.default.fileExists(atPath: final.appending(path: Self.completeMarker).path) {
@@ -43,7 +43,7 @@ struct AssetStore {
         try? FileManager.default.removeItem(at: staging)
         try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
 
-        try await download(assets, from: server, into: staging)
+        try await download(assets, from: scriptBase, into: staging)
         try Data().write(to: staging.appending(path: Self.completeMarker))
         try? FileManager.default.removeItem(at: final)
         try FileManager.default.moveItem(at: staging, to: final)
@@ -51,25 +51,24 @@ struct AssetStore {
         return final
     }
 
-    private func download(_ assets: [WebAsset], from server: URL, into directory: URL) async throws {
+    private func download(_ assets: [WebAsset], from scriptBase: URL, into directory: URL) async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             var pending = assets[...]
             for _ in 0..<Self.maxConcurrentDownloads {
                 guard let asset = pending.popFirst() else { break }
-                group.addTask { try await Self.fetch(asset, from: server, into: directory) }
+                group.addTask { try await Self.fetch(asset, from: scriptBase, into: directory) }
             }
             for try await _ in group {
                 guard let asset = pending.popFirst() else { continue }
-                group.addTask { try await Self.fetch(asset, from: server, into: directory) }
+                group.addTask { try await Self.fetch(asset, from: scriptBase, into: directory) }
             }
         }
     }
 
-    private static func fetch(_ asset: WebAsset, from server: URL, into directory: URL) async throws {
-        guard let url = URL(string: asset.href, relativeTo: server)?.absoluteURL else {
-            throw AssetIntegrityError(name: asset.name, reason: "invalid URL \(asset.href)")
-        }
-        var request = URLRequest(url: url)
+    /// Fetched by name from the folder the server really uses; the signed hash, not the
+    /// location, is what makes the file trustworthy.
+    private static func fetch(_ asset: WebAsset, from scriptBase: URL, into directory: URL) async throws {
+        var request = URLRequest(url: scriptBase.appending(path: asset.name))
         request.setValue(HTTP.userAgent, forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
         try HTTP.require(200, response, context: "Downloading \(asset.name)")

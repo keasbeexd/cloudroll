@@ -58,6 +58,20 @@ struct UpstreamProxy: Sendable {
         return HTTPResponse(statusCode: status, headers: responseHeaders, body: body)
     }
 
+    /// A CSRF token for the shell page, fetched in the proxy's cookie session so it
+    /// matches the session later API calls use.
+    func requestToken(webRoot: String) async throws -> String {
+        guard let url = URL(string: webRoot + "/index.php/csrftoken", relativeTo: origin)?.absoluteURL else {
+            throw ProxyError(reason: "invalid web root \(webRoot)")
+        }
+        var request = URLRequest(url: url)
+        request.setValue(authorization, forHTTPHeaderField: "Authorization")
+        let (data, response) = try await session.data(for: request)
+        try HTTP.require(200, response, context: "Fetching a request token")
+        struct Token: Decodable { let token: String }
+        return try JSONDecoder().decode(Token.self, from: data).token
+    }
+
     func upstreamRequest(for request: HTTPRequest) async throws -> URLRequest {
         // The target is relative; reject anything (e.g. "//host/…") that would leave the server.
         guard let url = URL(string: request.target.rawValue, relativeTo: origin)?.absoluteURL,

@@ -29,6 +29,7 @@ final class StubUpstream: URLProtocol {
         let (status, headers, data): (Int, [String: String], Data) = switch url.path {
         case "/echo": (200, ["Content-Type": "text/plain", "Set-Cookie": "nc_session=abc"], Data("hello".utf8))
         case "/redirect": (302, ["Location": "https://cloud.example.com/target?x=1"], Data())
+        case "/index.php/csrftoken": (200, ["Content-Type": "application/json"], Data(#"{"token":"tok123"}"#.utf8))
         default: (404, [:], Data())
         }
         let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)!
@@ -170,7 +171,9 @@ final class LocalServerTests: XCTestCase {
         XCTAssertNotNil(response.value(forHTTPHeaderField: "Content-Security-Policy"))
         XCTAssertTrue(html.contains("memories-main.js"))
         XCTAssertTrue(html.contains(#"<link rel="stylesheet" href="/core/css/server.css">"#))
-        XCTAssertTrue(StubUpstream.received.isEmpty)
+        XCTAssertTrue(html.contains(#"data-requesttoken="tok123""#))
+        XCTAssertEqual(StubUpstream.received.map(\.url.path), ["/index.php/csrftoken"])
+        XCTAssertEqual(StubUpstream.received.first?.headers["Authorization"], authorization)
     }
 
     func testServesMemoriesChunksFromSnapshot() async throws {

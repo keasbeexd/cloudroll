@@ -3,6 +3,7 @@ import Foundation
 enum MemoriesError: LocalizedError, Equatable {
     case notInstalled
     case unexpectedBaseURL(String)
+    case scriptsNotFound
 
     var errorDescription: String? {
         switch self {
@@ -10,6 +11,8 @@ enum MemoriesError: LocalizedError, Equatable {
             "Memories isn't installed on this Nextcloud. Ask your admin to install it from the Nextcloud app store."
         case .unexpectedBaseURL(let url):
             "Memories reported an unexpected address (\(url)), so it wasn't opened."
+        case .scriptsNotFound:
+            "Couldn't find where the server publishes Memories' scripts."
         }
     }
 }
@@ -46,3 +49,21 @@ struct MemoriesInfo: Decodable {
         return ""
     }
 }
+
+/// Where the server actually publishes Memories' scripts. The signed manifest's hrefs
+/// assume `/apps/memories/js/`, but app store installs usually live elsewhere
+/// (e.g. `/custom_apps/`), so the folder is read from the server's own Memories page.
+enum MemoriesScripts {
+    // A constant pattern; failing to compile it is a programming error.
+    private static let scriptSource = try! NSRegularExpression(pattern: #"src="(/[^"]*?)/memories-main\.js"#)
+
+    static func base(inPage html: String, server: URL) -> URL? {
+        guard let match = scriptSource.firstMatch(in: html, range: NSRange(html.startIndex..., in: html)),
+              let range = Range(match.range(at: 1), in: html)
+        else { return nil }
+        let folder = String(html[range])
+        guard !folder.hasPrefix("//") else { return nil }
+        return URL(string: folder + "/", relativeTo: server)?.absoluteURL
+    }
+}
+

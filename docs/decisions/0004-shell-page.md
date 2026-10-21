@@ -4,11 +4,11 @@ Date: 2026-10-21
 
 ## Decision
 
-When `api/describe?manifest=1` returns a signed manifest (Memories 9+) and it verifies, the app downloads the assets, starts the local server and opens `http://127.0.0.1:47811<webroot>/index.php/apps/memories/`. Otherwise, or if verification fails, it opens Memories directly from the server as before and shows why in a short message.
+When `api/describe?manifest=1` returns a signed manifest (Memories 9+) and it verifies, the app downloads the assets by name from the folder the server really uses, read from `<script src="…/memories-main.js">` on the server's own Memories page. The manifest's hrefs hardcode `/apps/memories/js/`, but app store installs usually live in `/custom_apps/`, where those hrefs return 404. The app then starts the local server and opens `http://127.0.0.1:47811<webroot>/index.php/apps/memories/`. Otherwise, or if verification fails, it opens Memories directly from the server as before and shows why in a short message.
 
 The local server generates the page Nextcloud would normally render:
 
-- `<head data-user="…">` (read by `@nextcloud/auth`) and the server's stylesheets from `cssManifest`. The stylesheets load through the proxy, and only server-relative ones are accepted.
+- `<head data-user="…" data-requesttoken="…">` (read by `@nextcloud/auth`). The token is fetched through the proxy's cookie session, so Memories' first API call doesn't fail Nextcloud's CSRF check. Then the server's stylesheets from `cssManifest`. The stylesheets load through the proxy, and only server-relative ones are accepted.
 - One nonce'd inline script that sets `_oc_webroot`, `_oc_appswebroots` and `_oc_capabilities`, then the verified `memories-l10n.js` and `memories-main.js`.
 - A strict Content-Security-Policy and `Cache-Control: no-store`.
 
@@ -25,6 +25,10 @@ Routing additions (`LocalRouter`):
 
 - Memories 9+ was built to run without Nextcloud's page in native mode. It needs only those globals, and the official Android app uses the same contract.
 - Without `nativex`, Memories would run as if it were inside Nextcloud and skip its native setup (theme handling, browser checks).
+
+## Verification
+
+On 2026-10-21 a Python stand-in for these rules, run against the Nextcloud 34 test server in headless Chromium, booted Memories 10.1.0. It showed the first-run screen, then the timeline with its tabs, and every API call (config, days, previews) succeeded through the proxy. Headless Chromium never showed the thumbnails, so check thumbnails on a device.
 
 ## Consequences
 
