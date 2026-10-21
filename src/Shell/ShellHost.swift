@@ -3,8 +3,8 @@ import Foundation
 enum MemoriesSource: Equatable {
     /// Memories loaded straight from the server (Memories ≤ 8, or a manifest we can't verify).
     case direct(URL)
-    /// Memories served by the local shell (Memories 9+).
-    case shell(URL)
+    /// Memories served by the local shell (Memories 9+), with Nextcloud's web root.
+    case shell(URL, webRoot: String)
 }
 
 /// Owns the app's single local server and decides how Memories is loaded.
@@ -39,7 +39,8 @@ final class ShellHost {
             let assets = try SignedManifest.verify(envelope)
             let scriptBase = try await NextcloudAPI.memoriesScriptBase(credential, page: direct)
             let directory = try await AssetStore.appDefault().snapshot(for: assets, scriptBase: scriptBase)
-            return (.shell(try await start(credential, info: info, assets: directory)), nil)
+            let entry = try await start(credential, info: info, assets: directory)
+            return (.shell(entry, webRoot: info.webRoot), nil)
         } catch let error as ManifestError {
             await stop()
             return (.direct(direct), "Using Memories' web interface: \(error.localizedDescription)")

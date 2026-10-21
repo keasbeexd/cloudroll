@@ -200,4 +200,13 @@ final class LocalServerTests: XCTestCase {
         XCTAssertEqual(otherResponse.statusCode, 501)
         XCTAssertTrue(StubUpstream.received.isEmpty)
     }
+
+    func testNextcloudHomeRedirectsToMemoriesEntry() async throws {
+        let (_, response) = try await send("/index.php/", accept: "text/html")
+
+        XCTAssertEqual(response.statusCode, 302)
+        XCTAssertEqual(response.value(forHTTPHeaderField: "Location"), "/index.php/apps/memories/")
+        XCTAssertTrue(StubUpstream.received.isEmpty)
+    }
 }
+

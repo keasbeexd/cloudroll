@@ -39,6 +39,10 @@ final class LocalShellUnitTests: XCTestCase {
         XCTAssertEqual(route("/api/days"), .bridge)
         XCTAssertEqual(route("/image/preview/1"), .bridge)
         XCTAssertEqual(route("/apis/x"), .proxy)
+        XCTAssertEqual(route("/", document: true), .redirectToEntry)
+        XCTAssertEqual(route("/index.php", document: true), .redirectToEntry)
+        XCTAssertEqual(route("/index.php/", document: true), .redirectToEntry)
+        XCTAssertEqual(route("/index.php/"), .proxy)
     }
 
     func testRoutesUnderSubfolderWebRoot() {

@@ -3,6 +3,8 @@ import Foundation
 enum LocalRoute: Equatable {
     /// The generated Memories page.
     case shell
+    /// Nextcloud's home page; inside the app it leads to Memories' start page.
+    case redirectToEntry
     /// A verified Memories web asset, by file name.
     case asset(String)
     /// The native API Memories calls in native mode (`/api/…`, `/image/…`, `/video/…`).
@@ -37,6 +39,9 @@ struct LocalRouter: Sendable {
         }
 
         let isGet = method.uppercased() == "GET"
+        if isGet, wantsDocument, [webRoot + "/", webRoot + "/index.php", webRoot + "/index.php/"].contains(path) {
+            return .redirectToEntry
+        }
         for appPrefix in [webRoot + "/index.php/apps/memories", webRoot + "/apps/memories"] {
             if isGet, path.hasPrefix(appPrefix + "/js/") {
                 return Self.assetRoute(String(path.dropFirst(appPrefix.count + "/js/".count)))
