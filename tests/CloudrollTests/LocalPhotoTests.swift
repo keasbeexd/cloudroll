@@ -49,3 +49,19 @@ final class LocalPhotoTests: XCTestCase {
         XCTAssertEqual(MemoriesWebView.Coordinator.iOSEquivalent(of: other), other)
     }
 }
+
+final class TimelineSourceTests: XCTestCase {
+    func testOnlyUnfilteredDayRequestsAreTheMainTimeline() {
+        func isMain(_ method: String, _ path: String, _ query: [String], webRoot: String = "") -> Bool {
+            TimelineSource.isMainTimelineDays(method: method, path: path, queryNames: query, webRoot: webRoot)
+        }
+
+        XCTAssertTrue(isMain("GET", "/index.php/apps/memories/api/days", []))
+        XCTAssertTrue(isMain("POST", "/index.php/apps/memories/api/days", ["monthView"]))
+        XCTAssertTrue(isMain("GET", "/nc/apps/memories/api/days", ["reverse"], webRoot: "/nc"))
+        XCTAssertFalse(isMain("GET", "/index.php/apps/memories/api/days", ["albums", "monthView"]))
+        XCTAssertFalse(isMain("GET", "/index.php/apps/memories/api/days", ["archive"]))
+        XCTAssertFalse(isMain("GET", "/index.php/apps/memories/api/days/123", []))
+        XCTAssertFalse(isMain("DELETE", "/index.php/apps/memories/api/days", []))
+    }
+}

@@ -42,11 +42,12 @@ enum BridgeEndpoints {
     /// Phone photos: days, day contents, previews, full images, videos, details, permission.
     private static func respondToLocalMedia(_ request: HTTPRequest, path: String) async throws -> HTTPResponse? {
         let library = PhotoLibrary.shared
+        let hidesPhone = TimelineSource.current == .cloud
         if path == "/api/days" {
-            return try json(await library.days())
+            return try json(hidesPhone ? [] : await library.days())
         }
         if let day = number(after: "/api/days/", in: path) {
-            return try json(await library.photos(onDay: day))
+            return try json(hidesPhone ? [] : await library.photos(onDay: day))
         }
         if let fileID = number(after: "/image/preview/", in: path) {
             let width = Int(query("x", in: request) ?? "") ?? 256
