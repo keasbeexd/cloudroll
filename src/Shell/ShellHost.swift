@@ -37,7 +37,8 @@ final class ShellHost {
 
         do {
             let assets = try SignedManifest.verify(envelope)
-            let directory = try await AssetStore.appDefault().snapshot(for: assets, server: credential.server)
+            let scriptBase = try await NextcloudAPI.memoriesScriptBase(credential, page: direct)
+            let directory = try await AssetStore.appDefault().snapshot(for: assets, scriptBase: scriptBase)
             return (.shell(try await start(credential, info: info, assets: directory)), nil)
         } catch let error as ManifestError {
             await stop()
@@ -45,6 +46,9 @@ final class ShellHost {
         } catch let error as AssetIntegrityError {
             await stop()
             return (.direct(direct), "Using Memories' web interface: \(error.localizedDescription)")
+        } catch MemoriesError.scriptsNotFound {
+            await stop()
+            return (.direct(direct), "Using Memories' web interface: \(MemoriesError.scriptsNotFound.localizedDescription)")
         }
     }
 

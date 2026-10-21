@@ -19,6 +19,21 @@ enum NextcloudAPI {
         return try JSONDecoder().decode(MemoriesInfo.self, from: data)
     }
 
+    /// Reads the folder Memories' scripts are served from out of the server's Memories page.
+    static func memoriesScriptBase(_ credential: Credential, page: URL) async throws -> URL {
+        var request = URLRequest(url: page)
+        request.setValue(HTTP.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue(credential.authorizationHeader, forHTTPHeaderField: "Authorization")
+        request.setValue("text/html", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try HTTP.require(200, response, context: "Loading the Memories page")
+        guard let base = MemoriesScripts.base(inPage: String(decoding: data, as: UTF8.self), server: credential.server) else {
+            throw MemoriesError.scriptsNotFound
+        }
+        return base
+    }
+
     /// Deletes the app password on the server so it no longer appears under "Devices & sessions".
     static func revokeAppPassword(_ credential: Credential) async throws {
         var request = URLRequest(url: credential.server.appending(path: "ocs/v2.php/core/apppassword"))
