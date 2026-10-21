@@ -69,8 +69,12 @@ enum BridgeEndpoints {
             let data = try JSONSerialization.data(withJSONObject: info)
             return HTTPResponse(statusCode: .ok, headers: [.contentType: "application/json"], body: data)
         }
-        if path.hasPrefix("/api/image/delete/") {
-            let auids = path.dropFirst("/api/image/delete/".count).split(separator: ",").map(String.init)
+        // Memories calls this with no AUIDs when none of the photos are on the phone; the
+        // request path then loses its trailing slash.
+        if path == "/api/image/delete" || path.hasPrefix("/api/image/delete/") {
+            let auids = path.dropFirst("/api/image/delete".count).split(separator: ",")
+                .map { String($0).trimmingCharacters(in: CharacterSet(charactersIn: "/")) }
+                .filter { !$0.isEmpty }
             let dry = ["1", "true"].contains(query("dry", in: request) ?? "")
             let count = try await library.delete(auids: auids, dry: dry)
             // iOS shows its own confirmation, so Memories can skip its dialog.

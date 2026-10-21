@@ -233,4 +233,15 @@ final class LocalServerTests: XCTestCase {
         ])
         XCTAssertEqual(received.dropFirst().first?.body, xml)
     }
+
+    /// Deleting server-only photos sends an empty list; it must succeed with a count of 0.
+    func testDeleteWithNoPhonePhotosSucceeds() async throws {
+        for target in ["/api/image/delete/?dry=1", "/api/image/delete/"] {
+            let (data, response) = try await send(target)
+            XCTAssertEqual(response.statusCode, 200, target)
+            let body = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            XCTAssertEqual(body?["count"] as? Int, 0, target)
+        }
+    }
 }
+
