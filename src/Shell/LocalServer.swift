@@ -61,6 +61,8 @@ struct LocalRequestHandler: HTTPHandler {
     let assetDirectory: URL
     let proxy: UpstreamProxy
     let shell: ShellConfig
+    /// This server's own origin; Memories hands it back in download and share URLs.
+    let localOrigin: URL
 
     func handleRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
         let cookies = request.headers.values(for: .cookie).joined(separator: "; ")
@@ -79,7 +81,7 @@ struct LocalRequestHandler: HTTPHandler {
         case .asset(let name):
             return try serveAsset(name)
         case .bridge:
-            return BridgeEndpoints.respond(to: request)
+            return await BridgeEndpoints.respond(to: request, proxy: proxy, localOrigin: localOrigin)
         case .notFound:
             return HTTPResponse(statusCode: .notFound)
         case .proxy:

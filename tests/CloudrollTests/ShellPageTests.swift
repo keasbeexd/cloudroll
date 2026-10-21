@@ -135,3 +135,38 @@ final class NavStateCollapseTests: XCTestCase {
         XCTAssertEqual(new.collapsed, true)
     }
 }
+
+final class ShareTests: XCTestCase {
+    private let local = URL(string: "http://127.0.0.1:47811")!
+
+    func testUpstreamTargetOnlyFromLocalOrigin() throws {
+        XCTAssertEqual(
+            try ShareCenter.upstreamTarget(for: "http://127.0.0.1:47811/index.php/apps/memories/api/download/abc?x=1#f", localOrigin: local),
+            "/index.php/apps/memories/api/download/abc?x=1"
+        )
+        XCTAssertThrowsError(try ShareCenter.upstreamTarget(for: "https://evil.example/x", localOrigin: local))
+        XCTAssertThrowsError(try ShareCenter.upstreamTarget(for: "http://127.0.0.1:9999/x", localOrigin: local))
+    }
+
+    func testSharedLinkIsDoubleDecodedAndWebOnly() {
+        let link = "https://cloud.example.com/s/AbC?x=1"
+        let once = link.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+        let twice = once.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+
+        XCTAssertEqual(BridgeEndpoints.sharedLink(fromPath: "/api/share/url/" + twice)?.absoluteString, link)
+        let script = "javascript:alert(1)".addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+        XCTAssertNil(BridgeEndpoints.sharedLink(fromPath: "/api/share/url/" + script))
+    }
+
+    func testSafeFilenames() {
+        XCTAssertEqual(UpstreamProxy.safeFilename("IMG_0001.HEIC"), "IMG_0001.HEIC")
+        XCTAssertEqual(UpstreamProxy.safeFilename("../../etc/passwd"), "_.._etc_passwd")
+        XCTAssertEqual(UpstreamProxy.safeFilename(".hidden"), "hidden")
+        XCTAssertEqual(UpstreamProxy.safeFilename(nil), "download")
+    }
+
+    func testBridgeParsesDownloadAndShareMessages() {
+        XCTAssertEqual(BridgeMessage(body: ["method": "download", "args": ["http://127.0.0.1/x"]]), .download("http://127.0.0.1/x"))
+        XCTAssertEqual(BridgeMessage(body: ["method": "setShareBlobs", "args": ["[]"]]), .setShareBlobs("[]"))
+    }
+}

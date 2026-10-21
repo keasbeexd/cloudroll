@@ -15,6 +15,9 @@ final class ShellHost {
     let server = LocalServer()
     private var handler: LocalRequestHandler?
 
+    /// The running shell's proxy, for native downloads.
+    var proxy: UpstreamProxy? { handler?.proxy }
+
     /// HttpOnly, so scripts in the page can't read the secret.
     var authCookie: HTTPCookie? {
         HTTPCookie(properties: [
@@ -69,7 +72,8 @@ final class ShellHost {
             authGuard: server.authGuard,
             assetDirectory: assets,
             proxy: try UpstreamProxy(credential: credential),
-            shell: ShellConfig(info: info)
+            shell: ShellConfig(info: info),
+            localOrigin: server.origin
         )
         // Restart so a different account or Memories version takes effect.
         await server.stop()

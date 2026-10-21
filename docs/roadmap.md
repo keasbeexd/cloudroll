@@ -18,7 +18,11 @@ Cloudroll ships as a free app with a one-time Pro unlock (~$2.99). Pro covers on
 - [ ] **Native Liquid Glass top bar and selection toolbar:** a SwiftUI tab bar (Timeline, Albums, Explore, Search) and a toolbar around the web content. Memories' own navigation is hidden with a stylesheet in the shell page. Tabs drive the Memories router, and the page reports its title and selection state so the toolbar shows the right actions (Share, Delete, Add to album).
   - Needs CI to build with Xcode 26 so the bars get Liquid Glass. iOS 17–25 show standard bars.
   - If a Memories release changes what the overrides depend on, the app falls back to the normal Memories interface. Check each Memories release against the test server.
-- [ ] **Step 4:** the `nativex` bridge: phone photos in the timeline, the native share sheet, saving to Camera Roll, the native video player, uploading and deleting phone photos
+- [ ] **Step 4:** the `nativex` bridge, in parts:
+  - [ ] **4a:** downloads and sharing through the iOS share sheet (`downloadFromUrl`, `SHARE_BLOBS`, `SHARE_URL`)
+  - [ ] **4b:** phone photos in the timeline (PhotoKit, permission and album choice, matched with server copies by `auid`/`buid`)
+  - [ ] **4c:** upload and delete phone photos, "backed up" markers
+  - [ ] **4d:** native Liquid Glass top bar replacing Memories' header (needs 4c's native upload)
 - [ ] Native full-screen photo viewer with glass controls (swiping, pinch-zoom)
 
 ## Phase 2: Pro v1
