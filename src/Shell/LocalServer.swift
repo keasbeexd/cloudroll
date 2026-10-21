@@ -14,6 +14,12 @@ actor LocalServer {
     private var server: HTTPServer?
     private(set) var lastError: Error?
 
+    /// HTTP plus the WebDAV and CalDAV/CardDAV-style methods Nextcloud serves.
+    static let methods: [HTTPMethod] = [
+        "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS",
+        "PROPFIND", "PROPPATCH", "MKCOL", "COPY", "MOVE", "LOCK", "UNLOCK", "REPORT", "SEARCH",
+    ].map { HTTPMethod($0) }
+
     init(port: UInt16 = LocalServer.defaultPort) {
         self.port = port
     }
@@ -28,7 +34,10 @@ actor LocalServer {
     /// again whenever the app returns to the foreground.
     func start(handler: some HTTPHandler) async throws {
         guard server == nil else { return }
-        let server = HTTPServer(address: try .inet(ip4: "127.0.0.1", port: port), handler: handler)
+        let server = HTTPServer(address: try .inet(ip4: "127.0.0.1", port: port))
+        // FlyingFox's catch-all route only matches its nine standard methods; Nextcloud's
+        // WebDAV methods (albums, sharing, moves) would get a 404 without this list.
+        await server.appendRoute(HTTPRoute(methods: Self.methods, path: "*"), to: handler)
         self.server = server
         Task { [weak self] in
             do {
