@@ -313,6 +313,18 @@ actor PhotoLibrary {
         return file
     }
 
+    /// The original file, its MIME type and capture time, for uploading to Nextcloud.
+    func originalForUpload(auid: String, into folder: URL) async throws -> (file: URL, mimetype: String, epoch: Int) {
+        guard let identifier = auids[auid],
+              let asset = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil).firstObject,
+              let date = asset.creationDate,
+              let resource = Self.originalResource(of: asset),
+              let file = try await exportOriginal(auid: auid, into: folder)
+        else { throw PhotoLibraryError(reason: "No phone photo with AUID \(auid).") }
+        let mimetype = UTType(resource.uniformTypeIdentifier)?.preferredMIMEType ?? "application/octet-stream"
+        return (file, mimetype, LocalPhotoIDs.epoch(for: date))
+    }
+
     /// Videos are served from a cached copy of the original so byte ranges work.
     func videoFile(fileID: Int) async throws -> URL {
         let asset = try asset(forFileID: fileID)

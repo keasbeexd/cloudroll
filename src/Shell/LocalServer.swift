@@ -90,7 +90,7 @@ struct LocalRequestHandler: HTTPHandler {
         case .asset(let name):
             return try serveAsset(name)
         case .bridge:
-            return await BridgeEndpoints.respond(to: request, proxy: proxy, localOrigin: localOrigin)
+            return await BridgeEndpoints.respond(to: request, proxy: proxy, localOrigin: localOrigin, shell: shell)
         case .notFound:
             DiagnosticsLog.record("local", "\(request.method.rawValue) \(request.path) -> 404 (not served locally)")
             return HTTPResponse(statusCode: .notFound)

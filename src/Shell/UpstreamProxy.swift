@@ -102,6 +102,79 @@ struct UpstreamProxy: Sendable {
         return destination
     }
 
+    /// Uploads a file to the user's Nextcloud files, creating missing folders and never
+    /// overwriting: if the name is taken, " 2", " 3", … is added. Returns the new file ID.
+    func upload(file: URL, to path: String, user: String, webRoot: String, mtime: Int, contentType: String) async throws -> Int {
+        let segments = try Self.validatedSegments(path)
+        let root = "\(webRoot)/remote.php/dav/files/\(Self.encode(user))"
+        var folder = root
+        for segment in segments.dropLast() {
+            folder += "/" + Self.encode(segment)
+            let status = try await send("MKCOL", folder)
+            guard [201, 405].contains(status) else {
+                throw ProxyError(reason: "creating the folder \(segment) returned HTTP \(status)")
+            }
+        }
+
+        let name = segments[segments.count - 1]
+        var candidate = name
+        var counter = 1
+        while try await send("PROPFIND", folder + "/" + Self.encode(candidate), headers: ["Depth": "0"]) == 207 {
+            counter += 1
+            let base = (name as NSString).deletingPathExtension
+            let ext = (name as NSString).pathExtension
+            candidate = ext.isEmpty ? "\(base) \(counter)" : "\(base) \(counter).\(ext)"
+        }
+
+        var request = try upstream(folder + "/" + Self.encode(candidate), method: "PUT")
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.setValue(String(mtime), forHTTPHeaderField: "X-OC-MTime")
+        let (_, response) = try await session.upload(for: request, fromFile: file)
+        let status = HTTP.status(of: response)
+        guard [201, 204].contains(status) else {
+            throw ProxyError(reason: "uploading \(candidate) returned HTTP \(status)")
+        }
+        // OC-FileId is the numeric ID followed by the instance ID, e.g. "00000123ocabc".
+        let header = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "OC-FileId") ?? ""
+        guard let fileID = Int(header.prefix(while: \.isNumber)), fileID > 0 else {
+            throw ProxyError(reason: "the server didn't return a file ID for \(candidate)")
+        }
+        return fileID
+    }
+
+    /// The destination Memories asks for must stay inside the user's files.
+    static func validatedSegments(_ path: String) throws -> [String] {
+        let segments = path.split(separator: "/").map(String.init)
+        let isClean = path.hasPrefix("/") && !segments.isEmpty && segments.allSatisfy { segment in
+            segment != "." && segment != ".." && !segment.unicodeScalars.contains { $0.value < 0x20 || $0 == "\\" }
+        }
+        guard isClean else { throw ProxyError(reason: "refused upload path \(path)") }
+        return segments
+    }
+
+    private static func encode(_ segment: String) -> String {
+        segment.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/?#"))) ?? segment
+    }
+
+    private func upstream(_ path: String, method: String) throws -> URLRequest {
+        guard let url = URL(string: path, relativeTo: origin)?.absoluteURL else {
+            throw ProxyError(reason: "invalid path \(path)")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue(authorization, forHTTPHeaderField: "Authorization")
+        return request
+    }
+
+    private func send(_ method: String, _ path: String, headers: [String: String] = [:]) async throws -> Int {
+        var request = try upstream(path, method: method)
+        for (name, value) in headers {
+            request.setValue(value, forHTTPHeaderField: name)
+        }
+        let (_, response) = try await session.data(for: request)
+        return HTTP.status(of: response)
+    }
+
     /// Server-provided names become file names, so path separators and leading dots go.
     static func safeFilename(_ suggested: String?) -> String {
         let cleaned = (suggested ?? "")
