@@ -44,6 +44,15 @@ wait_for_install() {
   exit 1
 }
 
+# Nextcloud's default providers leave out video; ffmpeg comes from the Dockerfile.
+enable_previews() {
+  local providers=(PNG JPEG GIF HEIC BMP XBitmap Movie MP4 Image)
+  occ config:system:delete enabledPreviewProviders >/dev/null
+  for i in "${!providers[@]}"; do
+    occ config:system:set enabledPreviewProviders "$i" --value="OC\\Preview\\${providers[$i]}" >/dev/null
+  done
+}
+
 install_memories() {
   local apps
   apps="$(occ app:list --output=json)"
@@ -70,8 +79,9 @@ export_root_ca() {
 
 require_podman
 create_env
-compose up -d
+compose up -d --build
 wait_for_install
+enable_previews
 install_memories
 export_root_ca
 
