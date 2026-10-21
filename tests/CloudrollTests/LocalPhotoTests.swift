@@ -105,3 +105,22 @@ final class SelectionTests: XCTestCase {
         XCTAssertNil(center.pendingCount)
     }
 }
+
+final class OverlayTests: XCTestCase {
+    func testOverlayDetectionIgnoresSelectionAndDays() {
+        func state(_ hash: String) -> NavState { NavState(enabled: true, tabs: [], path: "/", hash: hash) }
+
+        XCTAssertFalse(state("").overlayOpen)
+        XCTAssertFalse(state("#s").overlayOpen)
+        XCTAssertFalse(state("#day/1&s").overlayOpen)
+        XCTAssertTrue(state("#s&m").overlayOpen)
+        XCTAssertTrue(state("#v/1/2").overlayOpen)
+    }
+
+    func testSelectionStateFavoriteIsOptional() {
+        XCTAssertEqual(
+            BridgeMessage(body: ["method": "selection", "args": [#"{"active":true,"label":"1 selected","allFavorite":true}"#]]),
+            .selection(SelectionState(active: true, label: "1 selected", allFavorite: true))
+        )
+    }
+}

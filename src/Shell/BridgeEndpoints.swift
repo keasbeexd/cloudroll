@@ -76,7 +76,11 @@ enum BridgeEndpoints {
                 .map { String($0).trimmingCharacters(in: CharacterSet(charactersIn: "/")) }
                 .filter { !$0.isEmpty }
             let dry = ["1", "true"].contains(query("dry", in: request) ?? "")
-            return try await deleteLocal(auids: auids, dry: dry)
+            do {
+                return try await deleteLocal(auids: auids, dry: dry)
+            } catch is DeleteCancelled {
+                return aborted("Cancelled in iOS's delete prompt.")
+            }
         }
         if let allow = number(after: "/api/config/allow_media/", in: path) {
             if allow == 1 {

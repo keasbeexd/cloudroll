@@ -28,7 +28,14 @@
     const current = bar();
     if (current && !style.isConnected) document.head.appendChild(style);
     root.classList.toggle(NATIVE, !!current);
-    const json = JSON.stringify({ active: !!current, label: current?.querySelector('.text')?.textContent?.trim() ?? '' });
+    // Only on-screen photos are in the page; that's enough to show the star's state.
+    const selected = [...document.querySelectorAll('.p-outer.selected')];
+    const allFavorite = selected.length > 0 && selected.every((p) => p.querySelector('.flag.bottom-right .star-icon'));
+    const json = JSON.stringify({
+      active: !!current,
+      label: current?.querySelector('.text')?.textContent?.trim() ?? '',
+      allFavorite,
+    });
     if (json === lastReport) return;
     lastReport = json;
     post(JSON.parse(json));
@@ -82,16 +89,23 @@
     }
   };
 
-  /** Share straight to the native share sheet with originals, skipping Memories' choice. */
+  /**
+   * Share straight to the native share sheet with originals, skipping Memories' choice.
+   * Memories' dialog stays hidden until it closes, so only the native "Preparing…" shows
+   * while originals (e.g. phone videos) are exported.
+   */
   const shareOriginal = async () => {
     try {
       if (!(await run('share-variant-icon', { keepQuiet: true }))) return false;
+      // The dialog's list loads on demand, so the option can take a moment to appear.
       const original = await waitFor(
-        () => document.querySelector('.modal-mask .list-item:has(.file-icon), .modal-mask a:has(.file-icon)'),
-        1500,
+        () => document.querySelector('.modal-mask .list-item:has(.file-icon), .modal-mask a:has(.file-icon), .modal-mask [role="button"]:has(.file-icon)'),
+        5000,
       );
       // If Memories' dialog changed, the user picks from it instead.
-      original?.click();
+      if (!original) return true;
+      original.click();
+      await waitFor(() => !document.querySelector('.modal-mask'), 120000);
       return true;
     } finally {
       await nextFrame();
