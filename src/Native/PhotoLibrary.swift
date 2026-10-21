@@ -285,6 +285,34 @@ actor PhotoLibrary {
         return data
     }
 
+    /// Deletes phone photos by AUID; iOS asks the user to confirm. A dry run only counts
+    /// which of them are on this phone (Memories' `IMAGE_DELETE`).
+    func delete(auids requested: [String], dry: Bool) async throws -> Int {
+        let identifiers = requested.compactMap { auids[$0] }
+        guard !identifiers.isEmpty else { return 0 }
+        let assets = PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: nil)
+        guard !dry else { return assets.count }
+        try await PHPhotoLibrary.shared().performChanges {
+            PHAssetChangeRequest.deleteAssets(assets)
+        }
+        invalidate()
+        return assets.count
+    }
+
+    /// Writes a phone photo's original file into `folder` for sharing; nil when the AUID
+    /// isn't a phone photo.
+    func exportOriginal(auid: String, into folder: URL) async throws -> URL? {
+        guard let identifier = auids[auid],
+              let asset = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil).firstObject,
+              let resource = Self.originalResource(of: asset)
+        else { return nil }
+        let file = UpstreamProxy.uniqueDestination(in: folder, for: resource.originalFilename)
+        let options = PHAssetResourceRequestOptions()
+        options.isNetworkAccessAllowed = true
+        try await PHAssetResourceManager.default().writeData(for: resource, toFile: file, options: options)
+        return file
+    }
+
     /// Videos are served from a cached copy of the original so byte ranges work.
     func videoFile(fileID: Int) async throws -> URL {
         let asset = try asset(forFileID: fileID)
@@ -331,8 +359,8 @@ actor PhotoLibrary {
             "etag": photo.etag,
             "dayid": photo.dayid,
             "datetaken": Int(local.timeIntervalSince1970),
-            // Deleting phone photos arrives in step 4c.
-            "permissions": "",
+            // D: Memories offers deleting, which iOS confirms itself.
+            "permissions": "D",
             "exif": exif,
         ]
     }

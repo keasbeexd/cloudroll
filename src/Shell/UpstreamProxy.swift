@@ -83,9 +83,15 @@ struct UpstreamProxy: Sendable {
 
         let (temporary, response) = try await session.download(for: request)
         try HTTP.require(200, response, context: "Downloading")
-        let name = Self.safeFilename(response.suggestedFilename)
+        let destination = Self.uniqueDestination(in: folder, for: response.suggestedFilename)
+        try FileManager.default.moveItem(at: temporary, to: destination)
+        return destination
+    }
+
+    /// Several files may share a name (e.g. IMG_0001.JPG in two folders), so later ones get a number.
+    static func uniqueDestination(in folder: URL, for suggested: String?) -> URL {
+        let name = safeFilename(suggested)
         var destination = folder.appending(path: name)
-        // Several files may share a name (e.g. IMG_0001.JPG in two folders).
         var counter = 1
         while FileManager.default.fileExists(atPath: destination.path) {
             counter += 1
@@ -93,7 +99,6 @@ struct UpstreamProxy: Sendable {
             let ext = (name as NSString).pathExtension
             destination = folder.appending(path: ext.isEmpty ? "\(base) \(counter)" : "\(base) \(counter).\(ext)")
         }
-        try FileManager.default.moveItem(at: temporary, to: destination)
         return destination
     }
 

@@ -47,8 +47,7 @@ final class ShareCenter {
             throw ShareError(reason: "Memories didn't say which files to share.")
         }
         pendingBlobs = nil
-        let files = try await download(blobs.map(\.href), using: proxy, localOrigin: localOrigin)
-        present(files)
+        present(try await collect(blobs, using: proxy, localOrigin: localOrigin))
     }
 
     func download(_ href: String, using proxy: UpstreamProxy, localOrigin: URL) async throws {
@@ -57,6 +56,24 @@ final class ShareCenter {
 
     func shareLink(_ url: URL) {
         present([url])
+    }
+
+    /// Phone photos are shared from their originals; everything else downloads from Nextcloud.
+    private func collect(_ blobs: [BlobObject], using proxy: UpstreamProxy, localOrigin: URL) async throws -> [URL] {
+        busyMessage = blobs.count == 1 ? "Preparing…" : "Preparing \(blobs.count) files…"
+        defer { busyMessage = nil }
+
+        let folder = try Self.freshShareFolder()
+        var files: [URL] = []
+        for blob in blobs {
+            if let local = try await PhotoLibrary.shared.exportOriginal(auid: blob.auid, into: folder) {
+                files.append(local)
+            } else {
+                let target = try Self.upstreamTarget(for: blob.href, localOrigin: localOrigin)
+                files.append(try await proxy.download(target: target, into: folder))
+            }
+        }
+        return files
     }
 
     private func download(_ hrefs: [String], using proxy: UpstreamProxy, localOrigin: URL) async throws -> [URL] {
