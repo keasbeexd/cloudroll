@@ -23,12 +23,19 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 gh run download "$run_id" --name "$ARTIFACT" --dir "$tmp"
 
+age -d -i "$KEY" -o "$tmp/Cloudroll.ipa" "$tmp/Cloudroll-unsigned.ipa.age"
+version="$(unzip -p "$tmp/Cloudroll.ipa" Payload/Cloudroll.app/Info.plist \
+  | python3 -I -c 'import plistlib, sys; print(plistlib.loads(sys.stdin.buffer.read())["CFBundleShortVersionString"])')"
+
+# A new name per build so file sync (e.g. Nextcloud) always picks it up;
+# only the latest build is kept.
 mkdir -p "$OUT_DIR"
-age -d -i "$KEY" -o "$OUT_DIR/Cloudroll.ipa" "$tmp/Cloudroll-unsigned.ipa.age"
+find "$OUT_DIR" -maxdepth 1 -name 'Cloudroll*.ipa' -delete
+ipa="$OUT_DIR/Cloudroll-$version-$(date +%Y%m%d-%H%M).ipa"
+mv "$tmp/Cloudroll.ipa" "$ipa"
+
 # Delete this build and any older ones that were never fetched.
 for id in $(gh api "repos/{owner}/{repo}/actions/artifacts?name=$ARTIFACT&per_page=100" --jq '.artifacts[].id'); do
   gh api -X DELETE "repos/{owner}/{repo}/actions/artifacts/$id"
 done
-version="$(unzip -p "$OUT_DIR/Cloudroll.ipa" Payload/Cloudroll.app/Info.plist \
-  | python3 -I -c 'import plistlib, sys; print(plistlib.loads(sys.stdin.buffer.read())["CFBundleShortVersionString"])')"
-echo "Decrypted Cloudroll $version (CI run $run_id) to $OUT_DIR/Cloudroll.ipa and deleted it from GitHub."
+echo "Decrypted Cloudroll $version (CI run $run_id) to $ipa and deleted it from GitHub."
