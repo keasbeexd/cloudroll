@@ -31,6 +31,7 @@ final class ShellPageTests: XCTestCase {
         XCTAssertTrue(html.contains(#"<head data-user="alice">"#))
         XCTAssertTrue(html.contains(#"<script nonce="N0NCE">"#))
         XCTAssertTrue(html.contains(#"window._oc_webroot = "/nc";"#))
+        XCTAssertTrue(html.contains(#"window.OC = { webroot: "/nc", config: {} };"#))
         XCTAssertTrue(html.contains(#"<script src="/local/assets/memories-l10n.js"></script>"#))
         XCTAssertTrue(html.contains(#"<script defer src="/local/assets/memories-main.js"></script>"#))
         XCTAssertTrue(html.contains("user-scalable=no"))
