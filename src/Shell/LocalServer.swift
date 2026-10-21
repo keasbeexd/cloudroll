@@ -92,9 +92,14 @@ struct LocalRequestHandler: HTTPHandler {
         case .bridge:
             return await BridgeEndpoints.respond(to: request, proxy: proxy, localOrigin: localOrigin)
         case .notFound:
+            DiagnosticsLog.record("local", "\(request.method.rawValue) \(request.path) -> 404 (not served locally)")
             return HTTPResponse(statusCode: .notFound)
         case .proxy:
-            return await forward(request)
+            let response = await forward(request)
+            if response.statusCode.code >= 400 {
+                DiagnosticsLog.record("proxy", "\(request.method.rawValue) \(request.path) -> \(response.statusCode.code)")
+            }
+            return response
         }
     }
 

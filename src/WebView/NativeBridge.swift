@@ -41,6 +41,7 @@ enum BridgeMessage: Equatable {
     case navState(NavState)
     case download(String)
     case setShareBlobs(String)
+    case log(level: String, message: String)
 
     /// Parses `{ method, args }` posted by the script; unknown shapes are rejected.
     init?(body: Any) {
@@ -63,6 +64,9 @@ enum BridgeMessage: Equatable {
         case "setShareBlobs":
             guard let json = args.first as? String else { return nil }
             self = .setShareBlobs(json)
+        case "log":
+            guard let level = args.first as? String, let message = args.dropFirst().first as? String else { return nil }
+            self = .log(level: level, message: message)
         case "navState":
             guard let json = args.first as? String,
                   let state = try? JSONDecoder().decode(NavState.self, from: Data(json.utf8))

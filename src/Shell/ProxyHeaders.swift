@@ -14,8 +14,9 @@ enum ProxyHeaders {
         "cookie", "accept-encoding", "authorization", "origin", "referer", "content-length",
     ]
 
-    /// Dropped from responses: upstream cookies stay in the proxy's own cookie jar.
-    private static let responseOnly: Set<String> = ["set-cookie", "strict-transport-security"]
+    /// Dropped from responses: upstream cookies stay in the proxy's own cookie jar, and
+    /// HSTS/Alt-Svc describe the remote server's connection, not 127.0.0.1's.
+    private static let responseOnly: Set<String> = ["set-cookie", "strict-transport-security", "alt-svc"]
 
     static func forwardedRequest(_ headers: [(name: String, value: String)]) -> [(name: String, value: String)] {
         headers.filter { header in

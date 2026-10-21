@@ -32,11 +32,13 @@ struct MemoriesWebView: UIViewRepresentable {
                 forMainFrameOnly: true
             ))
             do {
-                config.userContentController.addUserScript(WKUserScript(
-                    source: try WebNavigation.script(),
-                    injectionTime: .atDocumentStart,
-                    forMainFrameOnly: true
-                ))
+                for name in ["shell-diagnostics", "shell-navigation"] {
+                    config.userContentController.addUserScript(WKUserScript(
+                        source: try WebNavigation.bundledScript(name),
+                        injectionTime: .atDocumentStart,
+                        forMainFrameOnly: true
+                    ))
+                }
             } catch {
                 // Memories keeps its own navigation. Reported after this view update,
                 // since state can't change while SwiftUI builds the view.

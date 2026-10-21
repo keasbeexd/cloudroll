@@ -27,6 +27,7 @@ enum BridgeEndpoints {
             await ShareCenter.shared.shareLink(link)
             return HTTPResponse(statusCode: .ok)
         }
+        DiagnosticsLog.record("bridge", "\(request.method.rawValue) \(path) -> 501")
         return LocalRequestHandler.plain(
             HTTPStatusCode(501, phrase: "Not Implemented"),
             "Cloudroll doesn't support \(path) yet."
