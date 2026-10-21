@@ -31,11 +31,16 @@ enum TimelineSource: String, CaseIterable, Identifiable {
         }
     }
 
-    /// The main timeline's day requests carry only layout parameters; any filter parameter
-    /// (albums, folder, archive, …) means another view, which is never hidden.
+    /// The main timeline's day requests (the day list, `/days/<id>` for one day, and POST for
+    /// several) carry only layout parameters; any filter parameter (albums, folder, archive, …)
+    /// means another view, which is never hidden.
     static func isMainTimelineDays(method: String, path: String, queryNames: [String], webRoot: String) -> Bool {
         let layoutOnly: Set<String> = ["monthView", "reverse"]
-        let isDaysPath = [webRoot + "/index.php/apps/memories/api/days", webRoot + "/apps/memories/api/days"].contains(path)
+        let isDaysPath = [webRoot + "/index.php/apps/memories/api/days", webRoot + "/apps/memories/api/days"].contains { base in
+            guard path.hasPrefix(base) else { return false }
+            let rest = path.dropFirst(base.count)
+            return rest.isEmpty || (rest.hasPrefix("/") && rest.dropFirst().allSatisfy(\.isNumber) && rest.count > 1)
+        }
         return isDaysPath && ["GET", "POST"].contains(method.uppercased()) && Set(queryNames).isSubset(of: layoutOnly)
     }
 }

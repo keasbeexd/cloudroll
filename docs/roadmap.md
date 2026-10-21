@@ -15,12 +15,12 @@ Cloudroll ships as a free app with a one-time Pro unlock (~$2.99). Pro covers on
 ## Phase 1: Free version
 
 - [x] Native Liquid Glass tab bar replacing Memories' bottom bar ([0005](decisions/0005-native-navigation.md))
-- [ ] **Native Liquid Glass top bar and selection toolbar:** a SwiftUI tab bar (Timeline, Albums, Explore, Search) and a toolbar around the web content. Memories' own navigation is hidden with a stylesheet in the shell page. Tabs drive the Memories router, and the page reports its title and selection state so the toolbar shows the right actions (Share, Delete, Add to album).
+- [ ] **Native Liquid Glass top bar and selection toolbar:** sharing from the toolbar should open the share sheet directly with originals, skipping Memories' version-choice dialog. a SwiftUI tab bar (Timeline, Albums, Explore, Search) and a toolbar around the web content. Memories' own navigation is hidden with a stylesheet in the shell page. Tabs drive the Memories router, and the page reports its title and selection state so the toolbar shows the right actions (Share, Delete, Add to album).
   - Needs CI to build with Xcode 26 so the bars get Liquid Glass. iOS 17–25 show standard bars.
   - If a Memories release changes what the overrides depend on, the app falls back to the normal Memories interface. Check each Memories release against the test server.
-- [ ] **Step 4:** the `nativex` bridge, in parts:
+- [ ] **Step 4:** the `nativex` bridge, in parts (deleting and sharing phone photos landed with 4b; the timeline can show all photos, Nextcloud only or this iPhone only):
   - [x] **4a:** downloads and sharing through the iOS share sheet (`downloadFromUrl`, `SHARE_BLOBS`, `SHARE_URL`)
-  - [ ] **4b:** phone photos in the timeline (PhotoKit, permission and album choice, matched with server copies by `auid`/`buid`)
+  - [x] **4b:** phone photos in the timeline (PhotoKit, permission and album choice, matched with server copies by `auid`/`buid`)
   - [ ] **4c:** upload and delete phone photos, "backed up" markers
   - [ ] **4d:** native Liquid Glass top bar replacing Memories' header (needs 4c's native upload)
 - [x] In-app diagnostics log (long press on the tab bar) for device-only bugs
