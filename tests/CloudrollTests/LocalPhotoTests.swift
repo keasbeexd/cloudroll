@@ -161,3 +161,13 @@ final class ViewerTests: XCTestCase {
         XCTAssertEqual(BridgeMessage(body: ["method": "viewer", "args": [#"{"open":false}"#]]), .viewer(.closed))
     }
 }
+
+final class DialogTests: XCTestCase {
+    func testDialogsWithoutAFragmentStillCountAsOverlays() {
+        let tabs = [NavState.Tab(href: "/a/", label: "Photos")]
+        let searching = NavState(enabled: true, tabs: tabs, path: "/a/", hash: "", dialog: true)
+        XCTAssertTrue(searching.overlayOpen)
+        XCTAssertFalse(searching.showsTabBar)
+        XCTAssertTrue(NavState(enabled: true, tabs: tabs, path: "/a/", hash: "", dialog: false).showsTabBar)
+    }
+}

@@ -32,6 +32,8 @@ struct NavState: Decodable, Equatable {
     var collapsed: Bool? = nil
     /// The page has Memories' mobile header (timeline-style views).
     var header: Bool? = nil
+    /// A Memories dialog or the search field is on screen.
+    var dialog: Bool? = nil
 
     static let empty = NavState(enabled: false, tabs: [], path: "", hash: "")
 
@@ -39,14 +41,14 @@ struct NavState: Decodable, Equatable {
 
     /// A dialog, the viewer, the editor or settings is open (anything but selection and days).
     var overlayOpen: Bool {
-        hash.dropFirst().split(separator: "&").map { $0.split(separator: "/").first ?? "" }
+        dialog == true || hash.dropFirst().split(separator: "&").map { $0.split(separator: "/").first ?? "" }
             .contains { $0 != "day" && $0 != "s" }
     }
 
     /// Memories encodes overlays in the fragment (`#v/…` viewer, `#s` selection, `#e` editor,
     /// `#m` modal, `#ss` settings, …). Only `#day` keeps the page itself in front.
     var showsTabBar: Bool {
-        guard enabled, !tabs.isEmpty else { return false }
+        guard enabled, !tabs.isEmpty, dialog != true else { return false }
         let fragments = hash.dropFirst().split(separator: "&").map { $0.split(separator: "/").first ?? "" }
         return fragments.allSatisfy { $0 == "day" }
     }
