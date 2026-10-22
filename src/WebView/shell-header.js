@@ -14,8 +14,9 @@
     html.${NATIVE} .top-matter-container .top-matter,
     html.${NATIVE} .top-matter-container .places-top-matter,
     html.${NATIVE} .top-matter-container .face-top-matter,
-    html.${NATIVE} .explore-outer .title,
-    html.${NATIVE} .explore-outer > div > .searchbar { visibility: hidden !important; }
+    html.${NATIVE} .explore-outer .title { visibility: hidden !important; }
+    /* Search moved to the native header; no blank gap where the field was. */
+    html.${NATIVE} .explore-outer > div > .searchbar { display: none !important; }
   `;
 
   const post = (state) => {
