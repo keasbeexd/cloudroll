@@ -30,6 +30,8 @@ struct NavState: Decodable, Equatable {
     let hash: String
     /// The user is scrolling down a list; absent from older script versions.
     var collapsed: Bool? = nil
+    /// The page has Memories' mobile header (timeline-style views).
+    var header: Bool? = nil
 
     static let empty = NavState(enabled: false, tabs: [], path: "", hash: "")
 
@@ -67,6 +69,22 @@ final class WebNavigation {
     }
 
     private nonisolated static let log = Logger(subsystem: "app.cloudroll", category: "navigation")
+
+    enum HeaderAction: String {
+        case upload
+        case search
+    }
+
+    /// Clicks the matching button of Memories' (hidden) mobile header.
+    func run(_ action: HeaderAction) {
+        webView?.evaluateJavaScript("window.__cloudrollHeader(\(ShellPage.jsString(action.rawValue)))") { result, error in
+            if let error {
+                Self.log.error("Header action failed: \(error.localizedDescription, privacy: .public)")
+            } else if result as? Bool != true {
+                Self.log.error("Memories has no \(action.rawValue, privacy: .public) button here")
+            }
+        }
+    }
 
     func expand() {
         webView?.evaluateJavaScript("window.__cloudrollExpandBar()") { _, error in

@@ -24,6 +24,9 @@ struct SignedInView: View {
             // web view's prefers-color-scheme and stop Memories following the system.
             .background((themeColor ?? Color(.systemBackground)).ignoresSafeArea())
             .overlay(alignment: .bottom) { bottomOverlay }
+            .overlay(alignment: .top) {
+                topOverlay.animation(.smooth(duration: 0.25), value: showsTopBar)
+            }
             .task(id: reloadToken) { await prepare() }
             .task(id: toast) { await dismissToastLater() }
             .sheet(isPresented: $showsDiagnostics) {
@@ -101,6 +104,24 @@ struct SignedInView: View {
         }
     }
 
+    /// Shown on timeline-style views, hidden while scrolling down, selecting or in dialogs.
+    private var showsTopBar: Bool {
+        let state = navigation.state
+        return state.header == true && state.collapsed != true && !state.overlayOpen && !selection.state.active
+    }
+
+    @ViewBuilder
+    private var topOverlay: some View {
+        if showsTopBar {
+            GlassTopBar(
+                title: navigation.highlightedTab?.label ?? "Memories",
+                onSearch: { navigation.run(.search) },
+                onUpload: { navigation.run(.upload) }
+            )
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
     private var bottomOverlay: some View {
         VStack(spacing: 8) {
             if let busy = ShareCenter.shared.busyMessage {
@@ -148,6 +169,7 @@ struct SignedInView: View {
         }
         .animation(.smooth(duration: 0.25), value: navigation.state.showsTabBar)
         .animation(.smooth(duration: 0.25), value: selection.state.active)
+        .animation(.smooth(duration: 0.25), value: navigation.state.collapsed)
     }
 
     @ViewBuilder
