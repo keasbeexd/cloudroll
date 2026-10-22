@@ -39,7 +39,7 @@ struct MemoriesWebView: UIViewRepresentable {
                 forMainFrameOnly: true
             ))
             do {
-                for name in ["shell-diagnostics", "shell-navigation", "shell-selection", "shell-viewer"] {
+                for name in ["shell-diagnostics", "shell-navigation", "shell-selection", "shell-viewer", "shell-header"] {
                     config.userContentController.addUserScript(WKUserScript(
                         source: try WebNavigation.bundledScript(name),
                         injectionTime: .atDocumentStart,

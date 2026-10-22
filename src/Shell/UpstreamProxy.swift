@@ -142,6 +142,22 @@ struct UpstreamProxy: Sendable {
         return fileID
     }
 
+    /// The first timeline folder from Memories' user config, where uploads go by default.
+    func timelineFolder(webRoot: String) async throws -> String {
+        var request = try upstream("\(webRoot)/index.php/apps/memories/api/config", method: "GET")
+        request.setValue("true", forHTTPHeaderField: "OCS-APIRequest")
+        var (data, response) = try await session.data(for: request)
+        // A fresh session fails Nextcloud's strict cookie check once, until its cookies are set.
+        if HTTP.status(of: response) == 412 {
+            (data, response) = try await session.data(for: request)
+        }
+        try HTTP.require(200, response, context: "Reading Memories' settings")
+        struct Config: Decodable { let timeline_path: String? }
+        let path = try JSONDecoder().decode(Config.self, from: data).timeline_path ?? "/"
+        let first = path.split(separator: ";").first.map(String.init) ?? "/"
+        return first.isEmpty ? "/" : first
+    }
+
     /// The destination Memories asks for must stay inside the user's files.
     static func validatedSegments(_ path: String) throws -> [String] {
         let segments = path.split(separator: "/").map(String.init)

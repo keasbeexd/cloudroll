@@ -171,3 +171,36 @@ final class DialogTests: XCTestCase {
         XCTAssertTrue(NavState(enabled: true, tabs: tabs, path: "/a/", hash: "", dialog: false).showsTabBar)
     }
 }
+
+final class HeaderTests: XCTestCase {
+    func testTitlesFromRoutes() {
+        let base = "/index.php/apps/memories"
+        XCTAssertEqual(HeaderState.title(forPath: base + "/albums/admin/My%20Trip", query: ""), "My Trip")
+        XCTAssertEqual(HeaderState.title(forPath: base + "/folders", query: ""), "Folders")
+        XCTAssertEqual(HeaderState.title(forPath: base + "/folders/Photos/2026", query: ""), "2026")
+        XCTAssertEqual(HeaderState.title(forPath: base + "/search", query: "q=frog"), "“frog”")
+        XCTAssertEqual(HeaderState.title(forPath: base + "/", query: ""), "")
+    }
+
+    func testUploadFolderOnlyInFoldersView() {
+        let base = "/nc/index.php/apps/memories"
+        XCTAssertEqual(HeaderState.folder(forPath: base + "/folders/Photos/Trip%201"), "/Photos/Trip 1")
+        XCTAssertEqual(HeaderState.folder(forPath: base + "/folders"), "/")
+        XCTAssertNil(HeaderState.folder(forPath: base + "/albums"))
+    }
+
+    func testIconSymbolsAndUploadDetection() {
+        XCTAssertEqual(HeaderState.Action(icon: "plus-icon", label: "Create").symbol, "plus")
+        XCTAssertEqual(HeaderState.Action(icon: "sort-calendar-ascending-icon", label: "Sort").symbol, "arrow.up.arrow.down")
+        XCTAssertEqual(HeaderState.Action(icon: "mystery-icon", label: "?").symbol, "circle.grid.2x2")
+        XCTAssertTrue(HeaderState.Action(icon: "upload-icon", label: "Upload files").isUpload)
+    }
+
+    func testBridgeParsesHeaderState() {
+        let json = #"{"kind":"matter","title":"Albums","back":false,"actions":[{"icon":"plus-icon","label":"Create new album"}],"more":true}"#
+        XCTAssertEqual(
+            BridgeMessage(body: ["method": "header", "args": [json]]),
+            .header(HeaderState(kind: "matter", title: "Albums", back: false, actions: [.init(icon: "plus-icon", label: "Create new album")], more: true))
+        )
+    }
+}

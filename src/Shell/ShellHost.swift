@@ -18,6 +18,12 @@ final class ShellHost {
     /// The running shell's proxy, for native downloads.
     var proxy: UpstreamProxy? { handler?.proxy }
 
+    /// What native uploads need: the proxy, the Nextcloud user and web root.
+    var uploadContext: (proxy: UpstreamProxy, user: String, webRoot: String)? {
+        guard let handler, let user = handler.shell.user else { return nil }
+        return (handler.proxy, user, handler.shell.webRoot)
+    }
+
     /// HttpOnly, so scripts in the page can't read the secret.
     var authCookie: HTTPCookie? {
         HTTPCookie(properties: [
