@@ -99,7 +99,8 @@
       if (!(await run('share-variant-icon', { keepQuiet: true }))) return false;
       // The dialog's list loads on demand, so the option can take a moment to appear.
       const original = await waitFor(
-        () => document.querySelector('.modal-mask .list-item:has(.file-icon), .modal-mask a:has(.file-icon), .modal-mask [role="button"]:has(.file-icon)'),
+        // The click handler sits on the list item's anchor, not its outer elements.
+        () => document.querySelector('.modal-mask a:has(.file-icon)'),
         5000,
       );
       // If Memories' dialog changed, the user picks from it instead.
