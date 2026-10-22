@@ -45,7 +45,8 @@
       : [];
     const header = enabled && !!document.getElementById('mobile-header');
     // Some Memories dialogs (e.g. search) don't add a URL fragment, so look for them too.
-    const dialog = !!document.querySelector('.modal-mask, .memories-searchbar');
+    // (Explore has a search field in the page itself, which is not a dialog.)
+    const dialog = !!document.querySelector('.modal-mask');
     const json = JSON.stringify({ enabled, tabs, path: location.pathname, query: location.search.slice(1), hash: location.hash, collapsed, header, dialog });
     if (json === lastReport) return;
     lastReport = json;

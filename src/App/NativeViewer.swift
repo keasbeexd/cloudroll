@@ -17,6 +17,9 @@ struct NativeViewer: View {
     @State private var showsChrome = true
     @State private var offset: CGSize = .zero
     @State private var player: AVPlayer?
+    @State private var width: CGFloat = 400
+    /// -1 after swiping to the next photo, 1 to the previous; the new photo slides in from that side.
+    @State private var incoming: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -40,11 +43,15 @@ struct NativeViewer: View {
                 chrome.transition(.opacity)
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .statusBarHidden(!showsChrome)
         .contentShape(Rectangle())
         .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { showsChrome.toggle() } }
         .simultaneousGesture(swipe)
-        .task(id: photo) { await load() }
+        .task(id: photo) {
+            slideIn()
+            await load()
+        }
         .onDisappear { player?.pause() }
     }
 
@@ -135,10 +142,41 @@ struct NativeViewer: View {
                 if offset.height > 0, dy > 220 {
                     Task { await controller.close() }
                 } else if offset.width != 0, abs(dx) > 160 {
-                    Task { dx < 0 ? await controller.next() : await controller.previous() }
+                    // The current photo leaves fully before Memories moves to the next one.
+                    let direction: CGFloat = dx < 0 ? -1 : 1
+                    incoming = direction
+                    withAnimation(.easeIn(duration: 0.16)) { offset = CGSize(width: direction * width, height: 0) }
+                    let leaving = photo.fileid
+                    Task { await page(direction: direction, leaving: leaving) }
+                    return
                 }
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { offset = .zero }
             }
+    }
+
+    /// Moves Memories to the neighbouring photo after the slide-out. At either end of the
+    /// list nothing changes, so the photo slides back.
+    private func page(direction: CGFloat, leaving: Int) async {
+        do {
+            try await Task.sleep(for: .milliseconds(160))
+            direction < 0 ? await controller.next() : await controller.previous()
+            try await Task.sleep(for: .milliseconds(400))
+        } catch {
+            return // The viewer closed meanwhile.
+        }
+        guard controller.state.photo?.fileid == leaving else { return }
+        incoming = 0
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { offset = .zero }
+    }
+
+    /// Brings a newly current photo in from the side opposite the swipe.
+    private func slideIn() {
+        guard incoming != 0 else { return }
+        var start = Transaction()
+        start.disablesAnimations = true
+        withTransaction(start) { offset = CGSize(width: -incoming * width, height: 0) }
+        incoming = 0
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) { offset = .zero }
     }
 
     private func load() async {
