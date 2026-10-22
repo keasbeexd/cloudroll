@@ -124,3 +124,40 @@ final class OverlayTests: XCTestCase {
         )
     }
 }
+
+final class ViewerTests: XCTestCase {
+    private let origin = URL(string: "http://127.0.0.1:47811")!
+
+    private func photo(local: Bool, video: Bool = false) -> ViewerPhoto {
+        ViewerPhoto(fileid: 80, auid: "abc", etag: "e/1", basename: "x.jpg", dayid: 20747, w: 10, h: 10,
+                    video: video, favorite: false, local: local)
+    }
+
+    func testServerPhotoURLsGoThroughTheProxiedMemoriesAPI() throws {
+        let media = try XCTUnwrap(ViewerMedia(photo: photo(local: false), origin: origin, webRoot: "/nc"))
+        XCTAssertEqual(media.preview.absoluteString, "http://127.0.0.1:47811/nc/index.php/apps/memories/api/image/preview/80?c=e%2F1&x=1024&y=1024&a=0")
+        XCTAssertEqual(media.full.absoluteString, "http://127.0.0.1:47811/nc/index.php/apps/memories/api/image/decodable/80?etag=e%2F1")
+        XCTAssertNil(media.video)
+    }
+
+    func testPhonePhotoURLsUseTheBridge() throws {
+        let media = try XCTUnwrap(ViewerMedia(photo: photo(local: true, video: true), origin: origin, webRoot: ""))
+        XCTAssertEqual(media.full.absoluteString, "http://127.0.0.1:47811/image/full/abc?size=2560")
+        XCTAssertEqual(media.video?.absoluteString, "http://127.0.0.1:47811/video/full/80")
+    }
+
+    func testTitleUsesTheDayIDsCalendarDay() {
+        let title = NativeViewer.title(for: photo(local: false))
+        XCTAssertTrue(title.contains("2026"), title)
+    }
+
+    func testBridgeParsesViewerState() {
+        let json = #"{"open":true,"photo":{"fileid":1,"auid":"a","etag":"e","basename":"b","dayid":2,"w":3,"h":4,"video":false,"favorite":true,"local":false}}"#
+        guard case .viewer(let state)? = BridgeMessage(body: ["method": "viewer", "args": [json]]) else {
+            return XCTFail("not parsed")
+        }
+        XCTAssertTrue(state.open)
+        XCTAssertEqual(state.photo?.favorite, true)
+        XCTAssertEqual(BridgeMessage(body: ["method": "viewer", "args": [#"{"open":false}"#]]), .viewer(.closed))
+    }
+}

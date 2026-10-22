@@ -12,6 +12,7 @@ struct SignedInView: View {
     @State private var themeColor: Color?
     @State private var navigation = WebNavigation()
     @State private var selection = SelectionController()
+    @State private var viewer = ViewerController()
     @State private var showsDiagnostics = false
     @State private var showsPhotoAccess = false
     @AppStorage("photoAccess.asked") private var askedForPhotoAccess = false
@@ -23,6 +24,7 @@ struct SignedInView: View {
             // Only the colour is mirrored: forcing a colour scheme here would also pin the
             // web view's prefers-color-scheme and stop Memories following the system.
             .background((themeColor ?? Color(.systemBackground)).ignoresSafeArea())
+            .overlay { viewerOverlay }
             .overlay(alignment: .bottom) { bottomOverlay }
             .overlay(alignment: .top) {
                 topOverlay.animation(.smooth(duration: 0.25), value: showsTopBar)
@@ -88,6 +90,7 @@ struct SignedInView: View {
                 credential: credential,
                 navigation: navigation,
                 selection: selection,
+                viewer: viewer,
                 onLoadError: { loadError = $0.localizedDescription },
                 onSignOut: onSignOut,
                 onBridgeMessage: handle
@@ -101,6 +104,25 @@ struct SignedInView: View {
                 ProgressView()
                 Text("Preparing Memories…").foregroundStyle(.secondary)
             }
+        }
+    }
+
+    /// Native viewer over Memories' hidden one, in shell mode only.
+    @ViewBuilder
+    private var viewerOverlay: some View {
+        if case .shell(let entry, let webRoot) = source,
+           viewer.state.open,
+           let photo = viewer.state.photo,
+           let origin = URL(string: "\(entry.scheme ?? "http")://\(entry.host ?? "127.0.0.1"):\(entry.port ?? 80)"),
+           let media = ViewerMedia(photo: photo, origin: origin, webRoot: webRoot) {
+            NativeViewer(
+                photo: photo,
+                media: media,
+                cookie: "\(LocalAuthGuard.cookieName)=\(ShellHost.shared.server.authGuard.secret)",
+                controller: viewer,
+                onError: { toast = $0 }
+            )
+            .transition(.opacity)
         }
     }
 
@@ -230,6 +252,8 @@ struct SignedInView: View {
             navigation.update(state)
         case .selection(let state):
             selection.update(state)
+        case .viewer(let state):
+            viewer.update(state)
         case .log(let level, let message):
             DiagnosticsLog.shared.add("page/\(level)", message)
         case .setLocalFolders(let json):

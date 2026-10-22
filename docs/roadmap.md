@@ -22,7 +22,8 @@ Cloudroll ships as a free app with a one-time Pro unlock (~$2.99). Pro covers on
   - [x] **4c:** upload phone photos to Nextcloud (never overwrites), delete phone photos, three-way delete for photos on both
   - [x] **4d:** native Liquid Glass top bar replacing Memories' header (logo, upload, search)
 - [x] In-app diagnostics log (long press on the tab bar) for device-only bugs
-- [ ] Native full-screen photo viewer with glass controls (swiping, pinch-zoom)
+- [x] Native full-screen photo viewer v1: zoomable images, native video, swipe to page or close, glass controls (Share, Favorite, Add to Album, Delete); Memories' hidden viewer stays in charge of the current photo
+- [ ] Native viewer v2: info panel, Live Photos, editing, prefetching neighbours
 
 ## Phase 2: Pro v1
 

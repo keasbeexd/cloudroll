@@ -1,0 +1,112 @@
+import Foundation
+import Observation
+import OSLog
+import WebKit
+
+/// The photo Memories' (hidden) viewer is showing, as reported by `shell-viewer.js`.
+struct ViewerPhoto: Decodable, Equatable {
+    let fileid: Int
+    let auid: String
+    let etag: String
+    let basename: String
+    let dayid: Int
+    let w: Int
+    let h: Int
+    let video: Bool
+    let favorite: Bool
+    let local: Bool
+}
+
+struct ViewerState: Decodable, Equatable {
+    let open: Bool
+    var photo: ViewerPhoto?
+
+    static let closed = ViewerState(open: false, photo: nil)
+}
+
+/// Where the native viewer loads a photo from: the local shell serves both server
+/// photos (proxied Memories API) and phone photos (native bridge).
+struct ViewerMedia: Equatable {
+    let preview: URL
+    let full: URL
+    let video: URL?
+
+    init?(photo: ViewerPhoto, origin: URL, webRoot: String) {
+        let o = origin.absoluteString
+        let preview: String
+        let full: String
+        let video: String
+        if photo.local {
+            preview = "\(o)/image/preview/\(photo.fileid)?x=1024&y=1024"
+            full = "\(o)/image/full/\(Self.encode(photo.auid))?size=2560"
+            video = "\(o)/video/full/\(photo.fileid)"
+        } else {
+            let api = "\(o)\(webRoot)/index.php/apps/memories/api"
+            let etag = Self.encode(photo.etag)
+            preview = "\(api)/image/preview/\(photo.fileid)?c=\(etag)&x=1024&y=1024&a=0"
+            full = "\(api)/image/decodable/\(photo.fileid)?etag=\(etag)"
+            video = "\(api)/stream/\(photo.fileid)"
+        }
+        guard let previewURL = URL(string: preview), let fullURL = URL(string: full) else { return nil }
+        self.preview = previewURL
+        self.full = fullURL
+        self.video = photo.video ? URL(string: video) : nil
+    }
+
+    private static func encode(_ value: String) -> String {
+        value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=?/+"))) ?? value
+    }
+}
+
+/// Drives Memories' hidden viewer (next/previous, close, actions) for the native one.
+@MainActor
+@Observable
+final class ViewerController {
+    enum Action {
+        case share
+        case favorite
+        case addToAlbum
+        case delete
+
+        /// Icon classes of Memories' viewer actions, tried in order.
+        var icons: [String] {
+            switch self {
+            case .share: ["share-variant-icon"]
+            case .favorite: ["star-outline-icon", "star-icon"]
+            case .addToAlbum: ["image-album-icon"]
+            case .delete: ["trash-can-outline-icon", "book-remove-icon"]
+            }
+        }
+    }
+
+    private static let log = Logger(subsystem: "app.cloudroll", category: "viewer")
+
+    private(set) var state = ViewerState.closed
+    @ObservationIgnored weak var webView: WKWebView?
+
+    func update(_ state: ViewerState) {
+        self.state = state
+    }
+
+    func next() async { _ = await call("return window.__cloudrollViewer.next()") }
+    func previous() async { _ = await call("return window.__cloudrollViewer.previous()") }
+    func close() async { _ = await call("return window.__cloudrollViewer.close()") }
+
+    func perform(_ action: Action) async -> Bool {
+        if action == .share {
+            return await call("return await window.__cloudrollViewer.shareOriginal()")
+        }
+        return await call("return await window.__cloudrollViewer.run(icons)", ["icons": action.icons])
+    }
+
+    private func call(_ body: String, _ arguments: [String: Any] = [:]) async -> Bool {
+        guard let webView else { return false }
+        do {
+            return try await webView.callAsyncJavaScript(body, arguments: arguments, contentWorld: .page) as? Bool ?? false
+        } catch {
+            Self.log.error("Viewer action failed: \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.add("native", "Viewer action failed: \(error.localizedDescription)")
+            return false
+        }
+    }
+}

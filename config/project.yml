@@ -30,6 +30,8 @@ targets:
         buildPhase: resources
       - path: ../src/WebView/shell-selection.js
         buildPhase: resources
+      - path: ../src/WebView/shell-viewer.js
+        buildPhase: resources
     dependencies:
       - package: FlyingFox
         product: FlyingFox
