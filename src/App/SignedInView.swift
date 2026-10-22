@@ -127,18 +127,30 @@ struct SignedInView: View {
     }
 
     /// Shown on timeline-style views, hidden while scrolling down, selecting or in dialogs.
+    /// Every view gets the glass header, except while scrolling down, selecting or in dialogs.
     private var showsTopBar: Bool {
         let state = navigation.state
-        return state.header == true && state.collapsed != true && !state.overlayOpen && !selection.state.active
+        guard state.enabled, state.collapsed != true, !state.overlayOpen, !selection.state.active else { return false }
+        return navigation.header.kind != "none" || !navigation.headerTitle.isEmpty
     }
 
     @ViewBuilder
     private var topOverlay: some View {
         if showsTopBar {
+            let header = navigation.header
             GlassTopBar(
-                title: navigation.highlightedTab?.label ?? "Memories",
-                onSearch: { navigation.run(.search) },
-                onUpload: { navigation.run(.upload) }
+                title: navigation.headerTitle,
+                // Views without a back button of their own (e.g. search results) go back in history.
+                showsBack: header.back || (header.kind == "none" && navigation.highlightedTab == nil),
+                showsSearch: header.kind == "timeline" || header.kind == "explore",
+                showsUpload: header.kind == "timeline",
+                actions: header.actions,
+                showsMore: header.more,
+                onBack: { navigation.headerBack() },
+                onAction: { navigation.headerAction($0.icon) },
+                onMore: { navigation.headerMore() },
+                onSearch: { navigation.search($0) },
+                onUpload: { source in Task { await upload(from: source) } }
             )
             .transition(.move(edge: .top).combined(with: .opacity))
         }
@@ -146,7 +158,7 @@ struct SignedInView: View {
 
     private var bottomOverlay: some View {
         VStack(spacing: 8) {
-            if let busy = ShareCenter.shared.busyMessage {
+            if let busy = ShareCenter.shared.busyMessage ?? UploadCenter.shared.progress {
                 HStack(spacing: 10) {
                     ProgressView()
                     Text(busy).font(.callout)
@@ -254,6 +266,8 @@ struct SignedInView: View {
             selection.update(state)
         case .viewer(let state):
             viewer.update(state)
+        case .header(let state):
+            navigation.update(state)
         case .log(let level, let message):
             DiagnosticsLog.shared.add("page/\(level)", message)
         case .setLocalFolders(let json):
@@ -284,6 +298,13 @@ struct SignedInView: View {
         // Memories stops its flow for these, leaving the photos selected.
         if choice == .phoneOnly || choice == .cancel {
             Task { await selection.cancel() }
+        }
+    }
+
+    private func upload(from source: UploadCenter.Source) async {
+        let folder = HeaderState.folder(forPath: navigation.state.path)
+        if let message = await UploadCenter.shared.upload(from: source, folder: folder) {
+            toast = message
         }
     }
 

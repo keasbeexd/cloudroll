@@ -34,6 +34,8 @@ struct NavState: Decodable, Equatable {
     var header: Bool? = nil
     /// A Memories dialog or the search field is on screen.
     var dialog: Bool? = nil
+    /// The URL query without "?", e.g. "q=frog" on the search page.
+    var query: String? = nil
 
     static let empty = NavState(enabled: false, tabs: [], path: "", hash: "")
 
@@ -59,11 +61,16 @@ struct NavState: Decodable, Equatable {
 @Observable
 final class WebNavigation {
     private(set) var state = NavState.empty
+    private(set) var header = HeaderState.none
     /// Highlighted on tap, before Memories reports the new route, so the bar reacts instantly.
     private var pendingTab: NavState.Tab?
     @ObservationIgnored weak var webView: WKWebView?
 
     var highlightedTab: NavState.Tab? { pendingTab ?? state.selectedTab }
+
+    func update(_ header: HeaderState) {
+        self.header = header
+    }
 
     func update(_ state: NavState) {
         self.state = state
@@ -72,18 +79,26 @@ final class WebNavigation {
 
     private nonisolated static let log = Logger(subsystem: "app.cloudroll", category: "navigation")
 
-    enum HeaderAction: String {
-        case upload
-        case search
+    /// Title for the native header: Memories' own, else derived from the route.
+    var headerTitle: String {
+        if !header.title.isEmpty { return header.title }
+        if header.kind == "timeline", let tab = highlightedTab { return tab.label }
+        let derived = HeaderState.title(forPath: state.path, query: state.query ?? "")
+        return derived.isEmpty ? (highlightedTab?.label ?? "Memories") : derived
     }
 
-    /// Clicks the matching button of Memories' (hidden) mobile header.
-    func run(_ action: HeaderAction) {
-        webView?.evaluateJavaScript("window.__cloudrollHeader(\(ShellPage.jsString(action.rawValue)))") { result, error in
+    /// Clicks one of Memories' (hidden) header buttons by icon class.
+    func headerAction(_ icon: String) { evaluate("window.__cloudrollHeader.action(\(ShellPage.jsString(icon)))") }
+    func headerBack() { evaluate("window.__cloudrollHeader.back()") }
+    func headerMore() { evaluate("window.__cloudrollHeader.more()") }
+    func search(_ query: String) { evaluate("window.__cloudrollHeader.search(\(ShellPage.jsString(query)))") }
+
+    private func evaluate(_ script: String) {
+        webView?.evaluateJavaScript(script) { result, error in
             if let error {
                 Self.log.error("Header action failed: \(error.localizedDescription, privacy: .public)")
             } else if result as? Bool != true {
-                Self.log.error("Memories has no \(action.rawValue, privacy: .public) button here")
+                Self.log.error("Memories has no matching header button")
             }
         }
     }

@@ -32,6 +32,8 @@ targets:
         buildPhase: resources
       - path: ../src/WebView/shell-viewer.js
         buildPhase: resources
+      - path: ../src/WebView/shell-header.js
+        buildPhase: resources
     dependencies:
       - package: FlyingFox
         product: FlyingFox
@@ -47,6 +49,8 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: Cloudroll uses the camera when you take a photo or video to upload to your Nextcloud.
+        NSMicrophoneUsageDescription: Cloudroll records sound with videos you take to upload to your Nextcloud.
         NSPhotoLibraryUsageDescription: Cloudroll shows the photos and videos on this iPhone in your Memories timeline, next to the ones on your Nextcloud.
         # The web view loads the shell over plain http from 127.0.0.1; everything
         # leaving the device still goes over https.
