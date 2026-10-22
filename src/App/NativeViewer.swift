@@ -24,9 +24,17 @@ struct NativeViewer: View {
                 .opacity(max(0.3, 1 - abs(offset.height) / 500))
                 .ignoresSafeArea()
 
-            content
-                .offset(offset)
-                .ignoresSafeArea()
+            // Videos sit between the glass bars so the player's own controls stay reachable.
+            if player != nil {
+                content
+                    .offset(offset)
+                    .padding(.top, 56)
+                    .padding(.bottom, 80)
+            } else {
+                content
+                    .offset(offset)
+                    .ignoresSafeArea()
+            }
 
             if showsChrome {
                 chrome.transition(.opacity)

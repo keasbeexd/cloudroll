@@ -46,7 +46,9 @@
       ? tabLinks().map((a) => ({ href: new URL(a.href).pathname, label: a.textContent.trim() }))
       : [];
     const header = enabled && !!document.getElementById('mobile-header');
-    const json = JSON.stringify({ enabled, tabs, path: location.pathname, hash: location.hash, collapsed, header });
+    // Some Memories dialogs (e.g. search) don't add a URL fragment, so look for them too.
+    const dialog = !!document.querySelector('.modal-mask, .memories-searchbar');
+    const json = JSON.stringify({ enabled, tabs, path: location.pathname, hash: location.hash, collapsed, header, dialog });
     if (json === lastReport) return;
     lastReport = json;
     post(JSON.parse(json));
