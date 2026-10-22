@@ -16,11 +16,11 @@ Cloudroll ships as a free app with a one-time Pro unlock (~$2.99). Pro covers on
 
 - [x] Native Liquid Glass tab bar replacing Memories' bottom bar ([0005](decisions/0005-native-navigation.md))
 - [x] Native Liquid Glass selection toolbar (Share straight to originals, Add to Album, Favorite with state, three-way Delete, More); hides over Memories' dialogs
-- [ ] **Step 4:** the `nativex` bridge, in parts (deleting and sharing phone photos landed with 4b; the timeline can show all photos, Nextcloud only or this iPhone only):
+- [x] **Step 4:** the `nativex` bridge, in parts (deleting and sharing phone photos landed with 4b; the timeline can show all photos, Nextcloud only or this iPhone only):
   - [x] **4a:** downloads and sharing through the iOS share sheet (`downloadFromUrl`, `SHARE_BLOBS`, `SHARE_URL`)
   - [x] **4b:** phone photos in the timeline (PhotoKit, permission and album choice, matched with server copies by `auid`/`buid`)
   - [x] **4c:** upload phone photos to Nextcloud (never overwrites), delete phone photos, three-way delete for photos on both
-  - [ ] **4d:** native Liquid Glass top bar replacing Memories' header (logo, upload, search)
+  - [x] **4d:** native Liquid Glass top bar replacing Memories' header (logo, upload, search)
 - [x] In-app diagnostics log (long press on the tab bar) for device-only bugs
 - [ ] Native full-screen photo viewer with glass controls (swiping, pinch-zoom)
 

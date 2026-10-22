@@ -9,6 +9,8 @@
   const style = document.createElement('style');
   style.textContent = `
     html.${NATIVE_CLASS} #mobile-nav { display: none !important; }
+    /* Kept in the page (its buttons are clicked by the native top bar), just not shown. */
+    html.${NATIVE_CLASS} #mobile-header { visibility: hidden !important; }
     /* Let content run under the glass bar... */
     html.${NATIVE_CLASS} #app-content-vue > .router-outlet.has-nav { height: 100% !important; }
     /* ...while scrollers keep their last row reachable above it. */
@@ -43,7 +45,8 @@
     const tabs = enabled
       ? tabLinks().map((a) => ({ href: new URL(a.href).pathname, label: a.textContent.trim() }))
       : [];
-    const json = JSON.stringify({ enabled, tabs, path: location.pathname, hash: location.hash, collapsed });
+    const header = enabled && !!document.getElementById('mobile-header');
+    const json = JSON.stringify({ enabled, tabs, path: location.pathname, hash: location.hash, collapsed, header });
     if (json === lastReport) return;
     lastReport = json;
     post(JSON.parse(json));
@@ -81,6 +84,13 @@
     collapsed = next;
     scheduleReport();
   }, { capture: true, passive: true });
+
+  /** Runs a button of Memories' mobile header ('upload' or 'search'). */
+  window.__cloudrollHeader = (action) => {
+    const button = document.querySelector(`#mobile-header .${action}-menu`);
+    button?.click();
+    return !!button;
+  };
 
   window.__cloudrollExpandBar = () => {
     collapsed = false;
