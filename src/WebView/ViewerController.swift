@@ -4,7 +4,7 @@ import OSLog
 import WebKit
 
 /// The photo Memories' (hidden) viewer is showing, as reported by `shell-viewer.js`.
-struct ViewerPhoto: Decodable, Equatable {
+struct ViewerPhoto: Decodable, Equatable, Hashable {
     let fileid: Int
     let auid: String
     let etag: String
@@ -20,13 +20,15 @@ struct ViewerPhoto: Decodable, Equatable {
 struct ViewerState: Decodable, Equatable {
     let open: Bool
     var photo: ViewerPhoto?
+    /// The photos either side of the current one, for prefetching.
+    var neighbours: [ViewerPhoto]?
 
     static let closed = ViewerState(open: false, photo: nil)
 }
 
 /// Where the native viewer loads a photo from: the local shell serves both server
 /// photos (proxied Memories API) and phone photos (native bridge).
-struct ViewerMedia: Equatable {
+struct ViewerMedia: Equatable, Hashable {
     let preview: URL
     let full: URL
     let video: URL?
@@ -91,6 +93,20 @@ final class ViewerController {
     func next() async { _ = await call("return window.__cloudrollViewer.next()") }
     func previous() async { _ = await call("return window.__cloudrollViewer.previous()") }
     func close() async { _ = await call("return window.__cloudrollViewer.close()") }
+
+    /// The current photo's details, once Memories has loaded them; nil if it can't.
+    func info() async -> PhotoInfo? {
+        guard let webView else { return nil }
+        do {
+            let json = try await webView.callAsyncJavaScript(
+                "return await window.__cloudrollViewer.info()", arguments: [:], contentWorld: .page
+            ) as? String
+            return try json.map { try JSONDecoder().decode(PhotoInfo.self, from: Data($0.utf8)) }
+        } catch {
+            DiagnosticsLog.shared.add("native", "Photo info failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
 
     func perform(_ action: Action) async -> Bool {
         if action == .share {

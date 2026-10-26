@@ -1,4 +1,5 @@
 import AVKit
+import MapKit
 import SwiftUI
 import UIKit
 
@@ -7,6 +8,8 @@ import UIKit
 struct NativeViewer: View {
     let photo: ViewerPhoto
     let media: ViewerMedia
+    /// The photos either side, loaded ahead so swiping shows them at once.
+    let neighbours: [ViewerMedia]
     let cookie: String
     let controller: ViewerController
     let onError: (String) -> Void
@@ -20,6 +23,7 @@ struct NativeViewer: View {
     @State private var width: CGFloat = 400
     /// -1 after swiping to the next photo, 1 to the previous; the new photo slides in from that side.
     @State private var incoming: CGFloat = 0
+    @State private var showsInfo = false
 
     var body: some View {
         ZStack {
@@ -51,6 +55,16 @@ struct NativeViewer: View {
         .task(id: photo) {
             slideIn()
             await load()
+        }
+        .task(id: neighbours) {
+            // Let the current photo load first.
+            try? await Task.sleep(for: .milliseconds(300))
+            await ShellImageLoader.shared.prefetch(neighbours.filter { $0.video == nil }, cookie: cookie)
+        }
+        .sheet(isPresented: $showsInfo) {
+            PhotoInfoSheet(photo: photo, controller: controller)
+                .presentationDetents([.medium, .large])
+                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .onDisappear { player?.pause() }
     }
@@ -95,6 +109,13 @@ struct NativeViewer: View {
                     .favorite,
                     tint: photo.favorite ? .yellow : nil
                 )
+                Button { showsInfo = true } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 19, weight: .semibold))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Info")
                 actionButton("Add to Album", "rectangle.stack.badge.plus", .addToAlbum)
                 actionButton("Delete", "trash", .delete, tint: .red)
             }
@@ -126,7 +147,8 @@ struct NativeViewer: View {
         .accessibilityLabel(title)
     }
 
-    /// Horizontal swipes page through photos; a downward swipe closes. Disabled while zoomed.
+    /// Horizontal swipes page through photos; a downward swipe closes and an upward one shows
+    /// the info. Disabled while zoomed.
     private var swipe: some Gesture {
         DragGesture(minimumDistance: 20)
             .onChanged { value in
@@ -139,8 +161,11 @@ struct NativeViewer: View {
                 guard !isZoomed else { return }
                 let dx = value.predictedEndTranslation.width
                 let dy = value.predictedEndTranslation.height
+                let upward = abs(value.translation.height) > abs(value.translation.width) && value.translation.height < 0
                 if offset.height > 0, dy > 220 {
                     Task { await controller.close() }
+                } else if upward, dy < -120 {
+                    showsInfo = true
                 } else if offset.width != 0, abs(dx) > 160 {
                     // The current photo leaves fully before Memories moves to the next one.
                     let direction: CGFloat = dx < 0 ? -1 : 1
@@ -194,8 +219,13 @@ struct NativeViewer: View {
             return
         }
         do {
-            preview = try await ShellImageLoader.shared.image(at: media.preview, cookie: cookie)
-            full = try await ShellImageLoader.shared.image(at: media.full, cookie: cookie)
+            // Loads are shared with prefetching and outlive this task, so check before showing.
+            let preview = try await ShellImageLoader.shared.image(at: media.preview, cookie: cookie)
+            try Task.checkCancellation()
+            self.preview = preview
+            let full = try await ShellImageLoader.shared.image(at: media.full, cookie: cookie)
+            try Task.checkCancellation()
+            self.full = full
         } catch is CancellationError {
             // The user moved to another photo.
         } catch {
@@ -210,6 +240,116 @@ struct NativeViewer: View {
     static func title(for photo: ViewerPhoto) -> String {
         let date = Date(timeIntervalSince1970: TimeInterval(photo.dayid) * 86400)
         return date.formatted(Date.FormatStyle(date: .long, time: .omitted, timeZone: TimeZone(identifier: "UTC")!))
+    }
+}
+
+/// Date, camera, file, location, people and albums for the current photo, from what Memories
+/// loaded for it. Follows the viewer when the user swipes to another photo.
+private struct PhotoInfoSheet: View {
+    let photo: ViewerPhoto
+    let controller: ViewerController
+
+    @State private var info: PhotoInfo?
+    @State private var failed = false
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let info {
+                    details(info)
+                } else if failed {
+                    ContentUnavailableView("No details", systemImage: "info.circle", description: Text("Memories didn't return details for this photo."))
+                } else {
+                    ProgressView()
+                }
+            }
+            .navigationTitle(info?.dateText ?? NativeViewer.title(for: photo))
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .task(id: photo.fileid) {
+            failed = false
+            if info?.fileid != photo.fileid { info = nil }
+            var loaded = await controller.info()
+            guard !Task.isCancelled else { return }
+            // The page answers for whichever photo is current by then.
+            if loaded?.fileid != photo.fileid { loaded = nil }
+            info = loaded
+            failed = loaded == nil
+        }
+    }
+
+    private func details(_ info: PhotoInfo) -> some View {
+        List {
+            if info.timeText != nil || info.title != nil || info.description != nil {
+                Section {
+                    if let time = info.timeText {
+                        Label(time, systemImage: "clock")
+                    }
+                    if let title = info.title {
+                        Text(title).font(.headline)
+                    }
+                    if let description = info.description {
+                        Text(description)
+                    }
+                }
+            }
+            if info.camera != nil || info.exposureText != nil {
+                Section {
+                    row(info.camera ?? "Camera", [info.lens, info.exposureText].compactMap { $0 }, symbol: "camera")
+                }
+            }
+            Section {
+                row(info.basename, [info.filename, info.fileText].compactMap { $0 }, symbol: "photo")
+            }
+            if info.hasLocation, let latitude = info.latitude, let longitude = info.longitude {
+                Section {
+                    location(CLLocationCoordinate2D(latitude: latitude, longitude: longitude), address: info.address)
+                }
+            } else if let address = info.address {
+                Section { Label(address, systemImage: "mappin.and.ellipse") }
+            }
+            if !info.people.isEmpty {
+                Section { Label(info.people.joined(separator: ", "), systemImage: "person.2") }
+            }
+            if !info.albums.isEmpty {
+                Section { Label(info.albums.joined(separator: ", "), systemImage: "rectangle.stack") }
+            }
+            if !info.tags.isEmpty {
+                Section { Label(info.tags.joined(separator: ", "), systemImage: "tag") }
+            }
+        }
+        .textSelection(.enabled)
+    }
+
+    private func row(_ title: String, _ lines: [String], symbol: String) -> some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                ForEach(lines, id: \.self) { line in
+                    Text(line).font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+        } icon: {
+            Image(systemName: symbol)
+        }
+    }
+
+    private func location(_ coordinate: CLLocationCoordinate2D, address: String?) -> some View {
+        let text = address ?? String(format: "%.5f, %.5f", coordinate.latitude, coordinate.longitude)
+        let region = MKCoordinateRegion(center: coordinate, latitudinalMeters: 1500, longitudinalMeters: 1500)
+        return VStack(alignment: .leading, spacing: 10) {
+            Map(initialPosition: .region(region), interactionModes: []) {
+                Marker("", coordinate: coordinate)
+            }
+            .id("\(coordinate.latitude),\(coordinate.longitude)")
+            .frame(height: 170)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            Label(text, systemImage: "mappin.and.ellipse")
+            if let url = URL(string: "https://maps.apple.com/?ll=\(coordinate.latitude),\(coordinate.longitude)&q=\(text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") {
+                Link("Open in Maps", destination: url)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
