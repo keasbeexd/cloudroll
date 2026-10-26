@@ -159,6 +159,22 @@ struct NativeViewer: View {
                     .padding(.horizontal, 14)
                     .frame(height: 44)
                     .modifier(GlassBackground(shape: Capsule()))
+                if photo.editable == true {
+                    // Opens Memories' editor; the native viewer hides while it's open.
+                    Button {
+                        Task {
+                            if !(await controller.perform(.edit)) {
+                                onError("Editing isn't available for this photo.")
+                            }
+                        }
+                    } label: {
+                        Text("Edit")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 16)
+                            .frame(height: 44)
+                    }
+                    .modifier(GlassBackground(shape: Capsule()))
+                }
             }
             .padding(.horizontal, 16)
 

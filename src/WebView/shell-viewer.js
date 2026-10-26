@@ -39,6 +39,8 @@
       video: !!(flag & FLAG_VIDEO) || !!photo.isvideo,
       favorite: !!(flag & FLAG_FAVORITE),
       local: !!(flag & FLAG_LOCAL) || !!photo.islocal,
+      // Memories' own rule for its Edit action (Viewer.vue canEdit), minus videos.
+      editable: !!photo.imageInfo?.permissions?.includes('U') && !(flag & FLAG_VIDEO) && !photo.isvideo,
     };
   };
 
@@ -59,6 +61,8 @@
     const index = pswp?.currIndex ?? -1;
     return {
       open: true,
+      // Memories' editor (Filerobot) lives inside its viewer, so it's shown while open.
+      editing: editRequested || !!document.querySelector('.viewer__image-editor'),
       photo: summarize(photo),
       previous: neighbour(pswp, index - 1),
       next: neighbour(pswp, index + 1),
@@ -118,7 +122,7 @@
     scheduled = false;
     const state = snapshot();
     if (state.open && !style.isConnected) document.head.appendChild(style);
-    root.classList.toggle(NATIVE, state.open);
+    root.classList.toggle(NATIVE, state.open && !state.editing);
     if (state.open) pauseHiddenVideos();
     const json = JSON.stringify(state);
     if (json === lastReport) return;
@@ -205,6 +209,26 @@
     }
   };
 
+  /** Opens Memories' editor. Live Photos get a confirmation first, which must not sit under
+   * the native viewer, so the viewer counts as editing until the editor opens or the
+   * question is answered. */
+  let editRequested = false;
+  const edit = async () => {
+    editRequested = true;
+    scheduleReport();
+    try {
+      if (!(await run(['tune-icon']))) return false;
+      const editor = () => document.querySelector('.viewer__image-editor');
+      const dialog = () => document.querySelector('.modal-mask');
+      await waitFor(() => editor() || dialog(), 2000);
+      await waitFor(() => editor() || !dialog(), 300000);
+      return true;
+    } finally {
+      editRequested = false;
+      scheduleReport();
+    }
+  };
+
   const step = (key) => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
     return true;
@@ -219,6 +243,7 @@
     },
     run: (icons) => run(icons),
     shareOriginal,
+    edit,
     info,
   };
 
