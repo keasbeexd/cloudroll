@@ -31,6 +31,7 @@
       fileid: photo.fileid,
       auid: photo.auid ?? '',
       etag: photo.etag ?? '',
+      liveid: photo.liveid ?? '',
       basename: photo.basename ?? '',
       dayid: photo.dayid ?? 0,
       w: photo.w ?? 0,

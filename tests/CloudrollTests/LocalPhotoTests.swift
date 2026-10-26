@@ -128,8 +128,8 @@ final class OverlayTests: XCTestCase {
 final class ViewerTests: XCTestCase {
     private let origin = URL(string: "http://127.0.0.1:47811")!
 
-    private func photo(local: Bool, video: Bool = false) -> ViewerPhoto {
-        ViewerPhoto(fileid: 80, auid: "abc", etag: "e/1", basename: "x.jpg", dayid: 20747, w: 10, h: 10,
+    private func photo(local: Bool, video: Bool = false, liveid: String? = nil) -> ViewerPhoto {
+        ViewerPhoto(fileid: 80, auid: "abc", etag: "e/1", liveid: liveid, basename: "x.jpg", dayid: 20747, w: 10, h: 10,
                     video: video, favorite: false, local: local)
     }
 
@@ -138,6 +138,16 @@ final class ViewerTests: XCTestCase {
         XCTAssertEqual(media.preview.absoluteString, "http://127.0.0.1:47811/nc/index.php/apps/memories/api/image/preview/80?c=e%2F1&x=1024&y=1024&a=0")
         XCTAssertEqual(media.full.absoluteString, "http://127.0.0.1:47811/nc/index.php/apps/memories/api/image/decodable/80?etag=e%2F1")
         XCTAssertNil(media.video)
+        XCTAssertNil(media.live)
+    }
+
+    func testServerLivePhotoGetsItsMotionURL() throws {
+        let apple = try XCTUnwrap(ViewerMedia(photo: photo(local: false, liveid: "6A1B-C2"), origin: origin, webRoot: ""))
+        XCTAssertEqual(apple.live?.absoluteString, "http://127.0.0.1:47811/index.php/apps/memories/api/video/livephoto/80?etag=e%2F1&liveid=6A1B-C2")
+        let motion = try XCTUnwrap(ViewerMedia(photo: photo(local: false, liveid: "self__exifbin=MotionPhotoVideo"), origin: origin, webRoot: ""))
+        XCTAssertEqual(motion.live?.absoluteString, "http://127.0.0.1:47811/index.php/apps/memories/api/video/livephoto/80?etag=e%2F1&liveid=self__exifbin%3DMotionPhotoVideo")
+        // Phone Live Photos come from PhotoKit, not a URL.
+        XCTAssertNil(ViewerMedia(photo: photo(local: true, liveid: "x"), origin: origin, webRoot: "")?.live)
     }
 
     func testPhonePhotoURLsUseTheBridge() throws {
@@ -159,6 +169,17 @@ final class ViewerTests: XCTestCase {
         XCTAssertTrue(state.open)
         XCTAssertEqual(state.photo?.favorite, true)
         XCTAssertEqual(BridgeMessage(body: ["method": "viewer", "args": [#"{"open":false}"#]]), .viewer(.closed))
+    }
+
+    func testBridgeParsesNeighboursAndLiveID() {
+        let photo = #"{"fileid":1,"auid":"","etag":"e","liveid":"L","basename":"b","dayid":2,"w":3,"h":4,"video":false,"favorite":false,"local":false}"#
+        let json = #"{"open":true,"photo":\#(photo),"previous":null,"next":\#(photo)}"#
+        guard case .viewer(let state)? = BridgeMessage(body: ["method": "viewer", "args": [json]]) else {
+            return XCTFail("not parsed")
+        }
+        XCTAssertEqual(state.photo?.liveid, "L")
+        XCTAssertNil(state.previous)
+        XCTAssertEqual(state.next?.fileid, 1)
     }
 }
 
