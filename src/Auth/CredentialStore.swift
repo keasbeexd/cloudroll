@@ -11,7 +11,7 @@ struct KeychainError: LocalizedError {
     }
 }
 
-/// Stores the single signed-in account. Multiple accounts are a planned Pro feature.
+/// Stores the single signed-in account. Multiple accounts are planned (see docs/roadmap.md).
 enum CredentialStore {
     private static let baseQuery: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,

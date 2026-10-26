@@ -1,6 +1,6 @@
 # Roadmap
 
-Cloudroll ships as a free app with a one-time Pro unlock (~$2.99). Pro covers only native iPhone features. Nothing Memories offers free on the web goes behind the paywall.
+Cloudroll is free, with every feature included. It's funded by optional donations: an in-app tip jar, GitHub Sponsors and Ko-fi ([0006](decisions/0006-donations.md)). Tips unlock a few supporter app icons and nothing else.
 
 ## Phase 0: Foundations
 
@@ -25,12 +25,14 @@ Cloudroll ships as a free app with a one-time Pro unlock (~$2.99). Pro covers on
 - [x] Native full-screen photo viewer v1: zoomable images, native video, swipe to page or close, glass controls (Share, Favorite, Add to Album, Delete); Memories' hidden viewer stays in charge of the current photo
 - [ ] Native viewer v2: info panel, Live Photos, editing, prefetching neighbours
 
-## Phase 2: Pro v1
+## Phase 2: More native features and support
 
-- [ ] StoreKit 2 one-time unlock
 - [ ] Face ID app lock
 - [ ] Multiple servers or accounts
 - [ ] Batch save originals to Camera Roll
+- [ ] Alternate app icons (a few unlocked by any tip)
+- [ ] Tip jar (StoreKit 2 consumables) in Settings, plus a one-time ask after 30 days
+- [ ] `FUNDING.yml` (GitHub Sponsors, Ko-fi) and a README Support section with costs and what donations paid for
 
 ## Phase 3: App Store
 
