@@ -4,7 +4,7 @@
 // current photo, hides Memories' viewer (its dialogs stay visible), keeps its videos
 // paused, and drives it: next/previous via the arrow keys PhotoSwipe listens to, and
 // actions via their icon classes. It also reports the neighbouring photos PhotoSwipe has
-// loaded (for prefetching) and hands over the info Memories loads for each photo.
+// loaded (shown while swiping) and hands over the info Memories loads for each photo.
 (() => {
   if (location.hostname !== '127.0.0.1') return;
 
@@ -41,23 +41,27 @@
     };
   };
 
-  /** The photos either side of the current one. PhotoSwipe keeps them loaded in its other
-   * item holders; `_m.viewer.photoswipe` is exposed by Memories "for debugging", so this
-   * degrades to no prefetching if it goes away. */
-  const neighbours = (pswp) => {
-    const holders = pswp?.mainScroll?.itemHolders ?? [];
-    return holders
-      .map((holder) => holder.slide)
-      .filter((slide) => slide && slide.index !== pswp.currIndex && slide.data?.photo?.fileid)
-      .sort((a, b) => a.index - b.index)
-      .map((slide) => summarize(slide.data.photo));
+  /** The photos either side of the current one, which PhotoSwipe keeps loaded in its other
+   * item holders. `_m.viewer.photoswipe` is exposed by Memories "for debugging", so if it
+   * goes away the native viewer just has no neighbours to show while swiping. */
+  const neighbour = (pswp, index) => {
+    const slide = (pswp?.mainScroll?.itemHolders ?? []).map((holder) => holder.slide).find((s) => s?.index === index);
+    const photo = slide?.data?.photo;
+    return photo?.fileid ? summarize(photo) : null;
   };
 
   const snapshot = () => {
     const viewer = window._m?.viewer;
     const photo = viewer?.isOpen ? viewer.currentPhoto : null;
     if (!photo) return { open: false };
-    return { open: true, photo: summarize(photo), neighbours: neighbours(viewer.photoswipe) };
+    const pswp = viewer.photoswipe;
+    const index = pswp?.currIndex ?? -1;
+    return {
+      open: true,
+      photo: summarize(photo),
+      previous: neighbour(pswp, index - 1),
+      next: neighbour(pswp, index + 1),
+    };
   };
 
   const number = (value) => {

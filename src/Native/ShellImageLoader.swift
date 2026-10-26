@@ -7,7 +7,7 @@ actor ShellImageLoader {
 
     private let cache = NSCache<NSURL, UIImage>()
     private let session = URLSession(configuration: .ephemeral)
-    /// Loads in progress, so a prefetch and the viewer asking for the same photo share one.
+    /// Loads in progress, so the viewer and its neighbour loading share one per photo.
     private var loading: [URL: Task<UIImage, Error>] = [:]
 
     init() {
@@ -36,14 +36,6 @@ actor ShellImageLoader {
         let image = try await task.value
         cache.setObject(image, forKey: url as NSURL, cost: Self.cost(of: image))
         return image
-    }
-
-    /// Loads the neighbouring photos' previews first, then their full images, ignoring failures.
-    func prefetch(_ media: [ViewerMedia], cookie: String) async {
-        for url in media.map(\.preview) + media.map(\.full) {
-            guard !Task.isCancelled else { return }
-            _ = try? await image(at: url, cookie: cookie)
-        }
     }
 
     private static func cost(of image: UIImage) -> Int {

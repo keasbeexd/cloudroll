@@ -20,8 +20,9 @@ struct ViewerPhoto: Decodable, Equatable, Hashable {
 struct ViewerState: Decodable, Equatable {
     let open: Bool
     var photo: ViewerPhoto?
-    /// The photos either side of the current one, for prefetching.
-    var neighbours: [ViewerPhoto]?
+    /// The photos either side of the current one, shown while swiping.
+    var previous: ViewerPhoto?
+    var next: ViewerPhoto?
 
     static let closed = ViewerState(open: false, photo: nil)
 }

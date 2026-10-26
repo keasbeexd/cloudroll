@@ -118,7 +118,8 @@ struct SignedInView: View {
             NativeViewer(
                 photo: photo,
                 media: media,
-                neighbours: (viewer.state.neighbours ?? []).compactMap { ViewerMedia(photo: $0, origin: origin, webRoot: webRoot) },
+                previous: viewer.state.previous.flatMap { ViewerMedia(photo: $0, origin: origin, webRoot: webRoot) },
+                next: viewer.state.next.flatMap { ViewerMedia(photo: $0, origin: origin, webRoot: webRoot) },
                 cookie: "\(LocalAuthGuard.cookieName)=\(ShellHost.shared.server.authGuard.secret)",
                 controller: viewer,
                 onError: { toast = $0 }
