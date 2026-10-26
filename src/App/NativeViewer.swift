@@ -8,8 +8,9 @@ import UIKit
 struct NativeViewer: View {
     let photo: ViewerPhoto
     let media: ViewerMedia
-    /// The photos either side, loaded ahead so swiping shows them at once.
-    let neighbours: [ViewerMedia]
+    /// The photos either side, shown next to this one while swiping.
+    let previous: ViewerMedia?
+    let next: ViewerMedia?
     let cookie: String
     let controller: ViewerController
     let onError: (String) -> Void
@@ -21,8 +22,13 @@ struct NativeViewer: View {
     @State private var offset: CGSize = .zero
     @State private var player: AVPlayer?
     @State private var width: CGFloat = 400
-    /// -1 after swiping to the next photo, 1 to the previous; the new photo slides in from that side.
-    @State private var incoming: CGFloat = 0
+    @State private var previousImage: UIImage?
+    @State private var nextImage: UIImage?
+    /// The neighbour that was swiped in, shown until its own load replaces it, so the switch
+    /// to Memories' next photo doesn't blink.
+    @State private var handoff: UIImage?
+    /// Between a committed swipe and Memories reporting the new photo.
+    @State private var paging = false
     @State private var showsInfo = false
 
     var body: some View {
@@ -30,6 +36,14 @@ struct NativeViewer: View {
             Color.black
                 .opacity(max(0.3, 1 - abs(offset.height) / 500))
                 .ignoresSafeArea()
+
+            // The neighbours ride along beside the current photo while swiping.
+            if offset.width != 0 {
+                neighbourView(previousImage)
+                    .offset(x: offset.width - width - Self.gap)
+                neighbourView(nextImage)
+                    .offset(x: offset.width + width + Self.gap)
+            }
 
             // Videos sit between the glass bars so the player's own controls stay reachable.
             if player != nil {
@@ -52,21 +66,36 @@ struct NativeViewer: View {
         .contentShape(Rectangle())
         .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { showsChrome.toggle() } }
         .simultaneousGesture(swipe)
-        .task(id: photo) {
-            slideIn()
+        // Keyed on the URLs, so toggling Favorite doesn't reload the photo.
+        .task(id: media) {
+            var settle = Transaction()
+            settle.disablesAnimations = true
+            withTransaction(settle) { offset = .zero }
+            paging = false
             await load()
         }
-        .task(id: neighbours) {
-            // Let the current photo load first.
-            try? await Task.sleep(for: .milliseconds(300))
-            await ShellImageLoader.shared.prefetch(neighbours.filter { $0.video == nil }, cookie: cookie)
-        }
+        .task(id: [previous, next]) { await loadNeighbours() }
         .sheet(isPresented: $showsInfo) {
             PhotoInfoSheet(photo: photo, controller: controller)
                 .presentationDetents([.medium, .large])
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .onDisappear { player?.pause() }
+    }
+
+    /// Space between photos while swiping, as in Photos.
+    private static let gap: CGFloat = 20
+
+    private func neighbourView(_ image: UIImage?) -> some View {
+        Group {
+            if let image {
+                Image(uiImage: image).resizable().scaledToFit()
+            } else {
+                Color.clear
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
     }
 
     @ViewBuilder
@@ -147,18 +176,23 @@ struct NativeViewer: View {
         .accessibilityLabel(title)
     }
 
-    /// Horizontal swipes page through photos; a downward swipe closes and an upward one shows
-    /// the info. Disabled while zoomed.
+    /// Horizontal swipes page through photos, with the neighbour following the finger; a
+    /// downward swipe closes and an upward one shows the info. Disabled while zoomed.
     private var swipe: some Gesture {
         DragGesture(minimumDistance: 20)
             .onChanged { value in
-                guard !isZoomed else { return }
-                offset = abs(value.translation.width) > abs(value.translation.height)
-                    ? CGSize(width: value.translation.width, height: 0)
-                    : CGSize(width: 0, height: max(0, value.translation.height))
+                guard !isZoomed, !paging else { return }
+                let dx = value.translation.width
+                if abs(dx) > abs(value.translation.height) {
+                    // Resist at either end of the list.
+                    let hasNeighbour = dx < 0 ? next != nil : previous != nil
+                    offset = CGSize(width: hasNeighbour ? dx : dx / 3, height: 0)
+                } else {
+                    offset = CGSize(width: 0, height: max(0, value.translation.height))
+                }
             }
             .onEnded { value in
-                guard !isZoomed else { return }
+                guard !isZoomed, !paging else { return }
                 let dx = value.predictedEndTranslation.width
                 let dy = value.predictedEndTranslation.height
                 let upward = abs(value.translation.height) > abs(value.translation.width) && value.translation.height < 0
@@ -166,48 +200,63 @@ struct NativeViewer: View {
                     Task { await controller.close() }
                 } else if upward, dy < -120 {
                     showsInfo = true
-                } else if offset.width != 0, abs(dx) > 160 {
-                    // The current photo leaves fully before Memories moves to the next one.
-                    let direction: CGFloat = dx < 0 ? -1 : 1
-                    incoming = direction
-                    withAnimation(.easeIn(duration: 0.16)) { offset = CGSize(width: direction * width, height: 0) }
-                    let leaving = photo.fileid
-                    Task { await page(direction: direction, leaving: leaving) }
-                    return
+                } else if offset.width != 0, abs(dx) > min(160, width / 3) {
+                    let toNext = dx < 0
+                    if toNext ? next != nil : previous != nil {
+                        page(toNext: toNext)
+                        return
+                    }
                 }
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { offset = .zero }
             }
     }
 
-    /// Moves Memories to the neighbouring photo after the slide-out. At either end of the
-    /// list nothing changes, so the photo slides back.
-    private func page(direction: CGFloat, leaving: Int) async {
-        do {
-            try await Task.sleep(for: .milliseconds(160))
-            direction < 0 ? await controller.next() : await controller.previous()
-            try await Task.sleep(for: .milliseconds(400))
-        } catch {
-            return // The viewer closed meanwhile.
+    /// Finishes the slide so the neighbour is centred, then moves Memories to it. The neighbour's
+    /// image stays up as the new photo's preview until the full one loads.
+    private func page(toNext: Bool) {
+        paging = true
+        handoff = toNext ? nextImage : previousImage
+        let leaving = photo.fileid
+        let target = (toNext ? -1 : 1) * (width + Self.gap)
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.95)) {
+            offset = CGSize(width: target, height: 0)
+        } completion: {
+            Task {
+                toNext ? await controller.next() : await controller.previous()
+                // If Memories didn't move (the list changed under us), come back.
+                try? await Task.sleep(for: .milliseconds(600))
+                guard controller.state.photo?.fileid == leaving else { return }
+                handoff = nil
+                paging = false
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { offset = .zero }
+            }
         }
-        guard controller.state.photo?.fileid == leaving else { return }
-        incoming = 0
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { offset = .zero }
     }
 
-    /// Brings a newly current photo in from the side opposite the swipe.
-    private func slideIn() {
-        guard incoming != 0 else { return }
-        var start = Transaction()
-        start.disablesAnimations = true
-        withTransaction(start) { offset = CGSize(width: -incoming * width, height: 0) }
-        incoming = 0
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) { offset = .zero }
+    /// The neighbours' previews first, then their full images, so a swipe shows them sharp.
+    private func loadNeighbours() async {
+        previousImage = nil
+        nextImage = nil
+        // Let the current photo load first.
+        try? await Task.sleep(for: .milliseconds(150))
+        for (media, isNext) in [(previous, false), (next, true)] {
+            guard let media, let image = try? await ShellImageLoader.shared.image(at: media.preview, cookie: cookie),
+                  !Task.isCancelled else { continue }
+            if isNext { nextImage = image } else { previousImage = image }
+        }
+        for (media, isNext) in [(previous, false), (next, true)] {
+            guard let media, media.video == nil,
+                  let image = try? await ShellImageLoader.shared.image(at: media.full, cookie: cookie),
+                  !Task.isCancelled else { continue }
+            if isNext { nextImage = image } else { previousImage = image }
+        }
     }
 
     private func load() async {
         player?.pause()
         player = nil
-        preview = nil
+        preview = handoff
+        handoff = nil
         full = nil
         isZoomed = false
         if let video = media.video {
