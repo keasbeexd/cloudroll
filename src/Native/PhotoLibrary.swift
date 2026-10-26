@@ -56,6 +56,9 @@ actor PhotoLibrary {
     private var identifiers: [Int: String] = [:]
     private var fileIDs: [String: Int] = [:]
     private var auids: [String: String] = [:]
+    /// Video copies in progress. AVPlayer sends several range requests at once, and each
+    /// await lets the next one in, so they share one copy instead of racing on the same file.
+    private var videoExports: [Int: Task<URL, Error>] = [:]
     private lazy var hasRemote = Set(UserDefaults.standard.stringArray(forKey: remoteKey) ?? [])
 
     // MARK: Access
@@ -348,16 +351,22 @@ actor PhotoLibrary {
         let ext = (resource.originalFilename as NSString).pathExtension
         let file = folder.appending(path: "\(fileID).\(ext.isEmpty ? "mov" : ext)")
         if FileManager.default.fileExists(atPath: file.path) { return file }
+        if let export = videoExports[fileID] { return try await export.value }
 
-        let options = PHAssetResourceRequestOptions()
-        options.isNetworkAccessAllowed = true
-        let partial = file.appendingPathExtension("partial")
-        if FileManager.default.fileExists(atPath: partial.path) {
-            try FileManager.default.removeItem(at: partial)
+        let export = Task<URL, Error> {
+            let options = PHAssetResourceRequestOptions()
+            options.isNetworkAccessAllowed = true
+            let partial = file.appendingPathExtension("partial")
+            if FileManager.default.fileExists(atPath: partial.path) {
+                try FileManager.default.removeItem(at: partial)
+            }
+            try await PHAssetResourceManager.default().writeData(for: resource, toFile: partial, options: options)
+            try FileManager.default.moveItem(at: partial, to: file)
+            return file
         }
-        try await PHAssetResourceManager.default().writeData(for: resource, toFile: partial, options: options)
-        try FileManager.default.moveItem(at: partial, to: file)
-        return file
+        videoExports[fileID] = export
+        defer { videoExports[fileID] = nil }
+        return try await export.value
     }
 
     /// Memories' `IImageInfo` for the viewer's details panel.
