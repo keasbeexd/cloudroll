@@ -58,7 +58,7 @@ actor PhotoLibrary {
     private var auids: [String: String] = [:]
     /// Video copies in progress. AVPlayer sends several range requests at once, and each
     /// await lets the next one in, so they share one copy instead of racing on the same file.
-    private var videoExports: [Int: Task<URL, Error>] = [:]
+    private var videoExports: [URL: Task<URL, Error>] = [:]
     private lazy var hasRemote = Set(UserDefaults.standard.stringArray(forKey: remoteKey) ?? [])
 
     // MARK: Access
@@ -346,12 +346,30 @@ actor PhotoLibrary {
         guard let resource = Self.originalResource(of: asset) else {
             throw PhotoLibraryError(reason: "The video has no original file.")
         }
+        return try await copy(resource, name: "\(fileID)", defaultExtension: "mov")
+    }
+
+    /// The motion part of a Live Photo, copied to a file; nil for other photos. An edited
+    /// Live Photo's motion comes from its full-size version.
+    func pairedVideoFile(fileID: Int) async throws -> URL? {
+        let asset = try asset(forFileID: fileID)
+        guard asset.mediaSubtypes.contains(.photoLive) else { return nil }
+        let resources = PHAssetResource.assetResources(for: asset)
+        guard let resource = resources.first(where: { $0.type == .fullSizePairedVideo })
+            ?? resources.first(where: { $0.type == .pairedVideo })
+        else { return nil }
+        let version = resource.type == .fullSizePairedVideo ? "edited" : "original"
+        return try await copy(resource, name: "\(fileID)-live-\(version)", defaultExtension: "mov")
+    }
+
+    /// Copies a resource into the cache folder once; concurrent callers share the copy.
+    private func copy(_ resource: PHAssetResource, name: String, defaultExtension: String) async throws -> URL {
         let folder = FileManager.default.temporaryDirectory.appending(path: "local-videos", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let ext = (resource.originalFilename as NSString).pathExtension
-        let file = folder.appending(path: "\(fileID).\(ext.isEmpty ? "mov" : ext)")
+        let file = folder.appending(path: "\(name).\(ext.isEmpty ? defaultExtension : ext)")
         if FileManager.default.fileExists(atPath: file.path) { return file }
-        if let export = videoExports[fileID] { return try await export.value }
+        if let export = videoExports[file] { return try await export.value }
 
         let export = Task<URL, Error> {
             let options = PHAssetResourceRequestOptions()
@@ -364,8 +382,8 @@ actor PhotoLibrary {
             try FileManager.default.moveItem(at: partial, to: file)
             return file
         }
-        videoExports[fileID] = export
-        defer { videoExports[fileID] = nil }
+        videoExports[file] = export
+        defer { videoExports[file] = nil }
         return try await export.value
     }
 

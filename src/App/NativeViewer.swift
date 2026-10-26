@@ -30,6 +30,9 @@ struct NativeViewer: View {
     /// Between a committed swipe and Memories reporting the new photo.
     @State private var paging = false
     @State private var showsInfo = false
+    /// The motion part of a Live Photo, played over the still.
+    @State private var livePlayer: AVPlayer?
+    @State private var livePlaying = false
 
     var body: some View {
         ZStack {
@@ -80,7 +83,17 @@ struct NativeViewer: View {
                 .presentationDetents([.medium, .large])
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
-        .onDisappear { player?.pause() }
+        .onChange(of: isZoomed) { _, zoomed in
+            if zoomed { stopLive() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AVPlayerItem.didPlayToEndTimeNotification)) { note in
+            guard let item = note.object as? AVPlayerItem, item === livePlayer?.currentItem else { return }
+            withAnimation(.easeOut(duration: 0.25)) { livePlaying = false }
+        }
+        .onDisappear {
+            player?.pause()
+            livePlayer?.pause()
+        }
     }
 
     /// Space between photos while swiping, as in Photos.
@@ -103,7 +116,16 @@ struct NativeViewer: View {
         if let player {
             VideoPlayer(player: player)
         } else if let image = full ?? preview {
-            ZoomableImage(image: image, isZoomed: $isZoomed)
+            ZoomableImage(image: image, isZoomed: $isZoomed) { pressing in
+                pressing ? playLive(muted: false) : stopLive()
+            }
+            .overlay {
+                if let livePlayer {
+                    PlayerLayer(player: livePlayer)
+                        .opacity(livePlaying ? 1 : 0)
+                        .allowsHitTesting(false)
+                }
+            }
         } else {
             ProgressView().tint(.white)
         }
@@ -119,6 +141,18 @@ struct NativeViewer: View {
                 }
                 .modifier(GlassBackground(shape: Circle()))
                 .accessibilityLabel("Close")
+                if livePlayer != nil {
+                    Button { playLive(muted: false) } label: {
+                        Label("Live", systemImage: livePlaying ? "livephoto.play" : "livephoto")
+                            .font(.footnote.weight(.semibold))
+                            .textCase(.uppercase)
+                            .padding(.horizontal, 12)
+                            .frame(height: 32)
+                    }
+                    .modifier(GlassBackground(shape: Capsule()))
+                    .accessibilityLabel("Play Live Photo")
+                    .accessibilityHint("Or touch and hold the photo.")
+                }
                 Spacer()
                 Text(Self.title(for: photo))
                     .font(.subheadline.weight(.semibold))
@@ -255,6 +289,9 @@ struct NativeViewer: View {
     private func load() async {
         player?.pause()
         player = nil
+        livePlayer?.pause()
+        livePlayer = nil
+        livePlaying = false
         preview = handoff
         handoff = nil
         full = nil
@@ -275,6 +312,7 @@ struct NativeViewer: View {
             let full = try await ShellImageLoader.shared.image(at: media.full, cookie: cookie)
             try Task.checkCancellation()
             self.full = full
+            await loadLive()
         } catch is CancellationError {
             // The user moved to another photo.
         } catch {
@@ -283,6 +321,42 @@ struct NativeViewer: View {
             }
             DiagnosticsLog.shared.add("viewer", "Loading \(photo.basename) failed: \(error.localizedDescription)")
         }
+    }
+
+    /// Finds the Live Photo's motion part (PhotoKit for phone photos, Memories for server ones)
+    /// and plays it once, muted, the way Photos does when you arrive at a Live Photo.
+    private func loadLive() async {
+        do {
+            let file: URL?
+            if photo.local {
+                file = try await PhotoLibrary.shared.pairedVideoFile(fileID: photo.fileid)
+            } else if let live = media.live {
+                file = try await LiveVideoLoader.shared.file(at: live, cookie: cookie)
+            } else {
+                file = nil
+            }
+            guard let file, !Task.isCancelled else { return }
+            let player = AVPlayer(url: file)
+            player.actionAtItemEnd = .pause
+            livePlayer = player
+            playLive(muted: true)
+        } catch {
+            DiagnosticsLog.shared.add("viewer", "Live Photo for \(photo.basename) failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func playLive(muted: Bool) {
+        guard let livePlayer, !isZoomed else { return }
+        livePlayer.isMuted = muted
+        livePlayer.seek(to: .zero)
+        livePlayer.play()
+        withAnimation(.easeIn(duration: 0.15)) { livePlaying = true }
+    }
+
+    private func stopLive() {
+        guard livePlaying else { return }
+        livePlayer?.pause()
+        withAnimation(.easeOut(duration: 0.25)) { livePlaying = false }
     }
 
     /// Memories' day IDs count days since 1970 in the photo's local time.
@@ -406,6 +480,8 @@ private struct PhotoInfoSheet: View {
 private struct ZoomableImage: UIViewRepresentable {
     let image: UIImage
     @Binding var isZoomed: Bool
+    /// Touch and hold: true when it starts, false when it ends (Live Photos play meanwhile).
+    var onPress: (Bool) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator { Coordinator(isZoomed: $isZoomed) }
 
@@ -426,10 +502,14 @@ private struct ZoomableImage: UIViewRepresentable {
         let doubleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.doubleTapped(_:)))
         doubleTap.numberOfTapsRequired = 2
         scrollView.addGestureRecognizer(doubleTap)
+        let press = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.pressed(_:)))
+        press.minimumPressDuration = 0.3
+        scrollView.addGestureRecognizer(press)
         return scrollView
     }
 
     func updateUIView(_ scrollView: UIScrollView, context: Context) {
+        context.coordinator.onPress = onPress
         guard let imageView = context.coordinator.imageView else { return }
         if imageView.image !== image {
             imageView.image = image
@@ -442,6 +522,7 @@ private struct ZoomableImage: UIViewRepresentable {
     final class Coordinator: NSObject, UIScrollViewDelegate {
         weak var imageView: UIImageView?
         @Binding var isZoomed: Bool
+        var onPress: (Bool) -> Void = { _ in }
 
         init(isZoomed: Binding<Bool>) {
             _isZoomed = isZoomed
@@ -457,6 +538,14 @@ private struct ZoomableImage: UIViewRepresentable {
             }
         }
 
+        @objc func pressed(_ recognizer: UILongPressGestureRecognizer) {
+            switch recognizer.state {
+            case .began: onPress(true)
+            case .ended, .cancelled, .failed: onPress(false)
+            default: break
+            }
+        }
+
         @objc func doubleTapped(_ recognizer: UITapGestureRecognizer) {
             guard let scrollView = recognizer.view as? UIScrollView else { return }
             if scrollView.zoomScale > 1.01 {
@@ -467,5 +556,28 @@ private struct ZoomableImage: UIViewRepresentable {
                 scrollView.zoom(to: CGRect(origin: CGPoint(x: point.x - size.width / 2, y: point.y - size.height / 2), size: size), animated: true)
             }
         }
+    }
+}
+
+/// A bare video layer for Live Photos: no controls, fitted like the still.
+private struct PlayerLayer: UIViewRepresentable {
+    let player: AVPlayer
+
+    func makeUIView(context: Context) -> PlayerView {
+        let view = PlayerView()
+        view.playerLayer.videoGravity = .resizeAspect
+        view.playerLayer.player = player
+        return view
+    }
+
+    func updateUIView(_ view: PlayerView, context: Context) {
+        if view.playerLayer.player !== player {
+            view.playerLayer.player = player
+        }
+    }
+
+    final class PlayerView: UIView {
+        override class var layerClass: AnyClass { AVPlayerLayer.self }
+        var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
     }
 }

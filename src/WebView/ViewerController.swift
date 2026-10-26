@@ -8,6 +8,9 @@ struct ViewerPhoto: Decodable, Equatable, Hashable {
     let fileid: Int
     let auid: String
     let etag: String
+    /// Memories' Live Photo ID: the MOV's content identifier, or `self__…` for motion photos
+    /// with the video inside the image. Empty for other photos.
+    var liveid: String?
     let basename: String
     let dayid: Int
     let w: Int
@@ -33,12 +36,15 @@ struct ViewerMedia: Equatable, Hashable {
     let preview: URL
     let full: URL
     let video: URL?
+    /// The motion part of a server Live Photo. Phone Live Photos come from PhotoKit instead.
+    let live: URL?
 
     init?(photo: ViewerPhoto, origin: URL, webRoot: String) {
         let o = origin.absoluteString
         let preview: String
         let full: String
         let video: String
+        var live: String?
         if photo.local {
             preview = "\(o)/image/preview/\(photo.fileid)?x=1024&y=1024"
             full = "\(o)/image/full/\(Self.encode(photo.auid))?size=2560"
@@ -49,11 +55,15 @@ struct ViewerMedia: Equatable, Hashable {
             preview = "\(api)/image/preview/\(photo.fileid)?c=\(etag)&x=1024&y=1024&a=0"
             full = "\(api)/image/decodable/\(photo.fileid)?etag=\(etag)"
             video = "\(api)/stream/\(photo.fileid)"
+            if let liveid = photo.liveid, !liveid.isEmpty, !photo.video {
+                live = "\(api)/video/livephoto/\(photo.fileid)?etag=\(etag)&liveid=\(Self.encode(liveid))"
+            }
         }
         guard let previewURL = URL(string: preview), let fullURL = URL(string: full) else { return nil }
         self.preview = previewURL
         self.full = fullURL
         self.video = photo.video ? URL(string: video) : nil
+        self.live = live.flatMap(URL.init(string:))
     }
 
     private static func encode(_ value: String) -> String {
