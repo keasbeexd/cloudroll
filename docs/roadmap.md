@@ -23,7 +23,7 @@ Cloudroll is free, with every feature included. It's funded by optional donation
   - [x] **4d:** native Liquid Glass top bar replacing Memories' header (logo, upload, search)
 - [x] In-app diagnostics log (long press on the tab bar) for device-only bugs
 - [x] Native full-screen photo viewer v1: zoomable images, native video, swipe to page or close, glass controls (Share, Favorite, Add to Album, Delete); Memories' hidden viewer stays in charge of the current photo
-- [ ] Native viewer v2: info panel, Live Photos, editing, prefetching neighbours
+- [x] Native viewer v2: info panel (button or swipe up), Live Photos (play on arrival, touch and hold, Live badge), editing through Memories' own editor, continuous swiping with the neighbouring photos loaded ahead
 
 ## Phase 2: More native features and support
 

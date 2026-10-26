@@ -172,14 +172,16 @@ final class ViewerTests: XCTestCase {
     }
 
     func testBridgeParsesNeighboursAndLiveID() {
-        let photo = #"{"fileid":1,"auid":"","etag":"e","liveid":"L","basename":"b","dayid":2,"w":3,"h":4,"video":false,"favorite":false,"local":false}"#
-        let json = #"{"open":true,"photo":\#(photo),"previous":null,"next":\#(photo)}"#
+        let photo = #"{"fileid":1,"auid":"","etag":"e","liveid":"L","basename":"b","dayid":2,"w":3,"h":4,"video":false,"favorite":false,"local":false,"editable":true}"#
+        let json = #"{"open":true,"editing":false,"photo":\#(photo),"previous":null,"next":\#(photo)}"#
         guard case .viewer(let state)? = BridgeMessage(body: ["method": "viewer", "args": [json]]) else {
             return XCTFail("not parsed")
         }
         XCTAssertEqual(state.photo?.liveid, "L")
         XCTAssertNil(state.previous)
         XCTAssertEqual(state.next?.fileid, 1)
+        XCTAssertEqual(state.photo?.editable, true)
+        XCTAssertEqual(state.editing, false)
     }
 }
 

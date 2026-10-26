@@ -18,10 +18,14 @@ struct ViewerPhoto: Decodable, Equatable, Hashable {
     let video: Bool
     let favorite: Bool
     let local: Bool
+    /// Memories offers its editor for this photo.
+    var editable: Bool?
 }
 
 struct ViewerState: Decodable, Equatable {
     let open: Bool
+    /// Memories' editor is open; the native viewer steps aside for it.
+    var editing: Bool?
     var photo: ViewerPhoto?
     /// The photos either side of the current one, shown while swiping.
     var previous: ViewerPhoto?
@@ -80,6 +84,7 @@ final class ViewerController {
         case favorite
         case addToAlbum
         case delete
+        case edit
 
         /// Icon classes of Memories' viewer actions, tried in order.
         var icons: [String] {
@@ -88,6 +93,7 @@ final class ViewerController {
             case .favorite: ["star-outline-icon", "star-icon"]
             case .addToAlbum: ["image-album-icon"]
             case .delete: ["trash-can-outline-icon", "book-remove-icon"]
+            case .edit: ["tune-icon"]
             }
         }
     }
@@ -122,6 +128,9 @@ final class ViewerController {
     func perform(_ action: Action) async -> Bool {
         if action == .share {
             return await call("return await window.__cloudrollViewer.shareOriginal()")
+        }
+        if action == .edit {
+            return await call("return await window.__cloudrollViewer.edit()")
         }
         return await call("return await window.__cloudrollViewer.run(icons)", ["icons": action.icons])
     }

@@ -112,6 +112,7 @@ struct SignedInView: View {
     private var viewerOverlay: some View {
         if case .shell(let entry, let webRoot) = source,
            viewer.state.open,
+           viewer.state.editing != true,
            let photo = viewer.state.photo,
            let origin = URL(string: "\(entry.scheme ?? "http")://\(entry.host ?? "127.0.0.1"):\(entry.port ?? 80)"),
            let media = ViewerMedia(photo: photo, origin: origin, webRoot: webRoot) {
