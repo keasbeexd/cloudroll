@@ -3,7 +3,8 @@
 // ordering, lazily loaded days and per-view lists stay right). This script reports the
 // current photo, hides Memories' viewer (its dialogs stay visible), keeps its videos
 // paused, and drives it: next/previous via the arrow keys PhotoSwipe listens to, and
-// actions via their icon classes.
+// actions via their icon classes. It also reports the neighbouring photos PhotoSwipe has
+// loaded (for prefetching) and hands over the info Memories loads for each photo.
 (() => {
   if (location.hostname !== '127.0.0.1') return;
 
@@ -24,26 +25,86 @@
     window.webkit?.messageHandlers?.cloudroll?.postMessage({ method: 'viewer', args: [JSON.stringify(state)] });
   };
 
+  const summarize = (photo) => {
+    const flag = photo.flag ?? 0;
+    return {
+      fileid: photo.fileid,
+      auid: photo.auid ?? '',
+      etag: photo.etag ?? '',
+      basename: photo.basename ?? '',
+      dayid: photo.dayid ?? 0,
+      w: photo.w ?? 0,
+      h: photo.h ?? 0,
+      video: !!(flag & FLAG_VIDEO) || !!photo.isvideo,
+      favorite: !!(flag & FLAG_FAVORITE),
+      local: !!(flag & FLAG_LOCAL) || !!photo.islocal,
+    };
+  };
+
+  /** The photos either side of the current one. PhotoSwipe keeps them loaded in its other
+   * item holders; `_m.viewer.photoswipe` is exposed by Memories "for debugging", so this
+   * degrades to no prefetching if it goes away. */
+  const neighbours = (pswp) => {
+    const holders = pswp?.mainScroll?.itemHolders ?? [];
+    return holders
+      .map((holder) => holder.slide)
+      .filter((slide) => slide && slide.index !== pswp.currIndex && slide.data?.photo?.fileid)
+      .sort((a, b) => a.index - b.index)
+      .map((slide) => summarize(slide.data.photo));
+  };
+
   const snapshot = () => {
     const viewer = window._m?.viewer;
     const photo = viewer?.isOpen ? viewer.currentPhoto : null;
     if (!photo) return { open: false };
-    const flag = photo.flag ?? 0;
-    return {
-      open: true,
-      photo: {
-        fileid: photo.fileid,
-        auid: photo.auid ?? '',
-        etag: photo.etag ?? '',
-        basename: photo.basename ?? '',
-        dayid: photo.dayid ?? 0,
-        w: photo.w ?? 0,
-        h: photo.h ?? 0,
-        video: !!(flag & FLAG_VIDEO) || !!photo.isvideo,
-        favorite: !!(flag & FLAG_FAVORITE),
-        local: !!(flag & FLAG_LOCAL) || !!photo.islocal,
-      },
-    };
+    return { open: true, photo: summarize(photo), neighbours: neighbours(viewer.photoswipe) };
+  };
+
+  const number = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
+  const text = (value) => (typeof value === 'string' && value.trim() ? value.trim() : null);
+  const names = (clusters) =>
+    (clusters ?? []).map((c) => text(c?.name)).filter((name) => name && !/^\d+$/.test(name));
+
+  /** The details Memories shows in its sidebar, once it has loaded them for this photo. */
+  const info = async () => {
+    const photo = await waitFor(() => {
+      const current = window._m?.viewer?.currentPhoto;
+      return current?.imageInfo ? current : null;
+    }, 8000);
+    const data = photo?.imageInfo;
+    if (!data) return null;
+    const exif = data.exif ?? {};
+    return JSON.stringify({
+      fileid: photo.fileid,
+      basename: data.basename ?? photo.basename ?? '',
+      filename: text(data.filename),
+      mimetype: text(data.mimetype),
+      size: number(data.size),
+      w: number(data.w),
+      h: number(data.h),
+      datetaken: number(data.datetaken),
+      offset: text(exif.OffsetTimeOriginal) ?? text(exif.OffsetTime),
+      title: text(exif.Title),
+      description: text(exif.Description),
+      make: text(exif.Make),
+      model: text(exif.Model),
+      lens: text(exif.LensModel),
+      fNumber: number(exif.FNumber) ?? number(exif.Aperture),
+      exposure: number(exif.ShutterSpeedValue) ?? number(exif.ShutterSpeed) ?? number(exif.ExposureTime),
+      focalLength: number(exif.FocalLength),
+      iso: number(exif.ISO),
+      megapixels: number(exif.Megapixels),
+      latitude: number(exif.GPSLatitude),
+      longitude: number(exif.GPSLongitude),
+      address: text(data.address),
+      tags: Object.values(data.tags ?? {}).map(text).filter(Boolean),
+      albums: names(data.clusters?.albums),
+      people: [...names(data.clusters?.recognize), ...names(data.clusters?.facerecognition)],
+    });
   };
 
   let lastReport = '';
@@ -153,6 +214,7 @@
     },
     run: (icons) => run(icons),
     shareOriginal,
+    info,
   };
 
   for (const method of ['pushState', 'replaceState']) {
