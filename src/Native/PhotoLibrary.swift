@@ -72,6 +72,12 @@ actor PhotoLibrary {
         PHPhotoLibrary.authorizationStatus(for: .readWrite) == .notDetermined
     }
 
+    /// Saving only needs add access, which full access includes.
+    static func requestAddAccess() async -> Bool {
+        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        return status == .authorized || status == .limited
+    }
+
     /// `.readWrite` now so deleting phone photos (step 4c) needs no second prompt.
     func requestAccess() async -> Bool {
         let status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
@@ -241,7 +247,7 @@ actor PhotoLibrary {
 
     // MARK: Media
 
-    private func asset(forFileID fileID: Int) throws -> PHAsset {
+    func asset(forFileID fileID: Int) throws -> PHAsset {
         _ = buildIndex()
         guard let identifier = identifiers[fileID],
               let asset = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil).firstObject
@@ -314,6 +320,23 @@ actor PhotoLibrary {
         return assets.count
     }
 
+    func isOnPhone(auid: String) -> Bool {
+        auids[auid] != nil
+    }
+
+    /// Adds downloaded files to the photo library as new photos and videos, moving them.
+    func addToLibrary(_ files: [URL]) async throws {
+        try await PHPhotoLibrary.shared().performChanges {
+            let options = PHAssetResourceCreationOptions()
+            options.shouldMoveFile = true
+            for file in files {
+                let isVideo = UTType(filenameExtension: file.pathExtension)?.conforms(to: .movie) == true
+                PHAssetCreationRequest.forAsset().addResource(with: isVideo ? .video : .photo, fileURL: file, options: options)
+            }
+        }
+        invalidate()
+    }
+
     /// Writes a phone photo's original file into `folder` for sharing; nil when the AUID
     /// isn't a phone photo.
     func exportOriginal(auid: String, into folder: URL) async throws -> URL? {
@@ -358,7 +381,8 @@ actor PhotoLibrary {
         guard let resource = resources.first(where: { $0.type == .fullSizePairedVideo })
             ?? resources.first(where: { $0.type == .pairedVideo })
         else { return nil }
-        let version = resource.type == .fullSizePairedVideo ? "edited" : "original"
+        // Each edit changes the modification date, so a later edit gets a fresh copy.
+        let version = resource.type == .fullSizePairedVideo ? "edited-\(Int(asset.modificationDate?.timeIntervalSince1970 ?? 0))" : "original"
         return try await copy(resource, name: "\(fileID)-live-\(version)", defaultExtension: "mov")
     }
 

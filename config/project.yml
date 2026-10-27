@@ -51,6 +51,8 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: Cloudroll uses the camera when you take a photo or video to upload to your Nextcloud.
         NSMicrophoneUsageDescription: Cloudroll records sound with videos you take to upload to your Nextcloud.
+        NSPhotoLibraryAddUsageDescription: Cloudroll saves the photos and videos you choose from your Nextcloud to this iPhone.
+        NSFaceIDUsageDescription: Cloudroll uses Face ID to unlock when you've turned on the lock in its settings.
         NSPhotoLibraryUsageDescription: Cloudroll shows the photos and videos on this iPhone in your Memories timeline, next to the ones on your Nextcloud.
         # The web view loads the shell over plain http from 127.0.0.1; everything
         # leaving the device still goes over https.

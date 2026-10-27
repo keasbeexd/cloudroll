@@ -13,7 +13,7 @@ struct SignedInView: View {
     @State private var navigation = WebNavigation()
     @State private var selection = SelectionController()
     @State private var viewer = ViewerController()
-    @State private var showsDiagnostics = false
+    @State private var showsSettings = false
     @State private var showsPhotoAccess = false
     @AppStorage("photoAccess.asked") private var askedForPhotoAccess = false
     @AppStorage(TimelineSource.storageKey) private var timelineSource = TimelineSource.all
@@ -31,8 +31,13 @@ struct SignedInView: View {
             }
             .task(id: reloadToken) { await prepare() }
             .task(id: toast) { await dismissToastLater() }
-            .sheet(isPresented: $showsDiagnostics) {
-                DiagnosticsView(source: source)
+            .sheet(isPresented: $showsSettings) {
+                SettingsView(source: source)
+            }
+            .onChange(of: ShareCenter.shared.notice) { _, notice in
+                guard let notice else { return }
+                toast = notice
+                ShareCenter.shared.clearNotice()
             }
             .sheet(isPresented: $showsPhotoAccess) {
                 PhotoAccessView { allow in
@@ -153,7 +158,8 @@ struct SignedInView: View {
                 onAction: { navigation.headerAction($0.icon) },
                 onMore: { navigation.headerMore() },
                 onSearch: { navigation.search($0) },
-                onUpload: { source in Task { await upload(from: source) } }
+                onUpload: { source in Task { await upload(from: source) } },
+                onSettings: header.kind == "timeline" ? { showsSettings = true } : nil
             )
             .transition(.move(edge: .top).combined(with: .opacity))
         }
@@ -190,7 +196,7 @@ struct SignedInView: View {
                         isCompact: navigation.state.collapsed == true,
                         onSelect: navigation.select,
                         onExpand: navigation.expand,
-                        onLongPress: { showsDiagnostics = true }
+                        onLongPress: { showsSettings = true }
                     )
                     // Only the main timeline is filtered, so the switch lives on the Photos tab.
                     if navigation.highlightedTab?.href.hasSuffix("/") == true {

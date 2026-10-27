@@ -18,6 +18,15 @@ final class ShareCenter {
 
     /// Shown while files are downloading.
     private(set) var busyMessage: String?
+    /// A result to show briefly, e.g. how many photos were saved.
+    private(set) var notice: String?
+    /// Where Memories' next share goes; set for one share by Save to Photos.
+    @ObservationIgnored var nextDestination = Destination.shareSheet
+
+    enum Destination {
+        case shareSheet
+        case photos
+    }
     /// Objects from `setShareBlobs`, waiting for the matching `SHARE_BLOBS` request.
     @ObservationIgnored private var pendingBlobs: [BlobObject]?
 
@@ -43,11 +52,76 @@ final class ShareCenter {
             try await Task.sleep(for: .milliseconds(50))
             waited += 1
         }
+        let destination = nextDestination
+        nextDestination = .shareSheet
         guard let blobs = pendingBlobs, !blobs.isEmpty else {
             throw ShareError(reason: "Memories didn't say which files to share.")
         }
         pendingBlobs = nil
-        present(try await collect(blobs, using: proxy, localOrigin: localOrigin))
+        switch destination {
+        case .shareSheet:
+            present(try await collect(blobs, using: proxy, localOrigin: localOrigin))
+        case .photos:
+            // Shown natively; Memories would only say that sharing failed.
+            do {
+                try await saveToPhotos(blobs, using: proxy, localOrigin: localOrigin)
+            } catch {
+                notice = error.localizedDescription
+            }
+        }
+    }
+
+    func clearNotice() {
+        notice = nil
+    }
+
+    /// Downloads the originals from Nextcloud and adds them to the photo library. Photos
+    /// that are already on this iPhone are skipped.
+    private func saveToPhotos(_ blobs: [BlobObject], using proxy: UpstreamProxy, localOrigin: URL) async throws {
+        var remote: [BlobObject] = []
+        for blob in blobs {
+            if !(await PhotoLibrary.shared.isOnPhone(auid: blob.auid)) {
+                remote.append(blob)
+            }
+        }
+        let skipped = blobs.count - remote.count
+        guard !remote.isEmpty else {
+            notice = blobs.count == 1 ? "This photo is already on this iPhone." : "These photos are already on this iPhone."
+            return
+        }
+        guard await PhotoLibrary.requestAddAccess() else {
+            throw ShareError(reason: "Cloudroll isn't allowed to add photos. Allow it under Settings → Cloudroll → Photos.")
+        }
+
+        busyMessage = remote.count == 1 ? "Saving…" : "Saving \(remote.count) files…"
+        defer { busyMessage = nil }
+        let folder = try Self.freshShareFolder()
+        var files: [URL] = []
+        var failed = 0
+        for blob in remote {
+            do {
+                let target = try Self.upstreamTarget(for: blob.href, localOrigin: localOrigin)
+                files.append(try await proxy.download(target: target, into: folder))
+            } catch {
+                failed += 1
+                DiagnosticsLog.shared.add("native", "Saving \(blob.href) failed: \(error.localizedDescription)")
+            }
+        }
+        if !files.isEmpty {
+            try await PhotoLibrary.shared.addToLibrary(files)
+        }
+        notice = Self.saveSummary(saved: files.count, skipped: skipped, failed: failed)
+    }
+
+    nonisolated static func saveSummary(saved: Int, skipped: Int, failed: Int) -> String {
+        var parts = [saved == 1 ? "Saved 1 item to Photos" : "Saved \(saved) items to Photos"]
+        if skipped > 0 {
+            parts.append("\(skipped) already on this iPhone")
+        }
+        if failed > 0 {
+            parts.append("\(failed) couldn't be downloaded")
+        }
+        return parts.joined(separator: ", ") + "."
     }
 
     func download(_ href: String, using proxy: UpstreamProxy, localOrigin: URL) async throws {

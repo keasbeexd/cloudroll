@@ -20,6 +20,7 @@ struct SelectionState: Decodable, Equatable {
 final class SelectionController {
     enum Action: String, CaseIterable {
         case share
+        case save
         case addToAlbum
         case favorite
         case delete
@@ -27,6 +28,7 @@ final class SelectionController {
         var title: String {
             switch self {
             case .share: "Share"
+            case .save: "Save to Photos"
             case .addToAlbum: "Add to Album"
             case .favorite: "Favorite"
             case .delete: "Delete"
@@ -36,6 +38,7 @@ final class SelectionController {
         var symbol: String {
             switch self {
             case .share: "square.and.arrow.up"
+            case .save: "square.and.arrow.down"
             case .addToAlbum: "rectangle.stack.badge.plus"
             case .favorite: "star"
             case .delete: "trash"
@@ -46,7 +49,7 @@ final class SelectionController {
         /// "Remove from album" instead of "Delete").
         var icons: [String] {
             switch self {
-            case .share: ["share-variant-icon"]
+            case .share, .save: ["share-variant-icon"]
             case .addToAlbum: ["image-album-icon"]
             case .favorite: ["star-icon"]
             case .delete: ["trash-can-outline-icon", "book-remove-icon"]
@@ -66,6 +69,12 @@ final class SelectionController {
     /// Returns false when Memories offers no such action here.
     func perform(_ action: Action) async -> Bool {
         if action == .share {
+            return await call("return await window.__cloudrollSelection.shareOriginal()")
+        }
+        // Memories' share of the originals, with the files going to Photos instead.
+        if action == .save {
+            ShareCenter.shared.nextDestination = .photos
+            defer { ShareCenter.shared.nextDestination = .shareSheet }
             return await call("return await window.__cloudrollSelection.shareOriginal()")
         }
         for icon in action.icons where await call("return await window.__cloudrollSelection.run(icon)", ["icon": icon]) {

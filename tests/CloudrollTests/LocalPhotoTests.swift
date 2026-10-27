@@ -152,7 +152,7 @@ final class ViewerTests: XCTestCase {
 
     func testPhonePhotoURLsUseTheBridge() throws {
         let media = try XCTUnwrap(ViewerMedia(photo: photo(local: true, video: true), origin: origin, webRoot: ""))
-        XCTAssertEqual(media.full.absoluteString, "http://127.0.0.1:47811/image/full/abc?size=2560")
+        XCTAssertEqual(media.full.absoluteString, "http://127.0.0.1:47811/image/full/abc?size=2560&c=e%2F1")
         XCTAssertEqual(media.video?.absoluteString, "http://127.0.0.1:47811/video/full/80")
     }
 

@@ -38,6 +38,15 @@ actor ShellImageLoader {
         return image
     }
 
+    /// Drops cached copies, e.g. after the photo was edited.
+    func forget(_ urls: [URL]) {
+        for url in urls {
+            cache.removeObject(forKey: url as NSURL)
+            // The bridge's responses are cacheable for a day, and the session keeps them too.
+            session.configuration.urlCache?.removeCachedResponse(for: URLRequest(url: url))
+        }
+    }
+
     private static func cost(of image: UIImage) -> Int {
         let scale = image.scale
         return Int(image.size.width * scale * image.size.height * scale * 4)
