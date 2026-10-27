@@ -44,6 +44,7 @@ enum AppIcon: String, CaseIterable, Identifiable {
 struct AppIconPicker: View {
     @Binding var selected: AppIcon
     @State private var errorMessage: String?
+    @State private var isChanging = false
 
     private let columns = [GridItem(.adaptive(minimum: 76), spacing: 16)]
 
@@ -83,13 +84,36 @@ struct AppIconPicker: View {
         }
     }
 
+    /// iOS refuses a change while the previous one (and its confirmation) is still in
+    /// progress, and occasionally fails for no lasting reason, so changes run one at a time,
+    /// a failure is retried once, and only a change that really didn't happen is reported.
     private func choose(_ icon: AppIcon) async {
-        guard icon != selected, UIApplication.shared.supportsAlternateIcons else { return }
-        do {
-            try await UIApplication.shared.setAlternateIconName(icon.alternateName)
+        guard icon != selected, !isChanging, UIApplication.shared.supportsAlternateIcons else { return }
+        isChanging = true
+        defer { isChanging = false }
+        var lastError: Error?
+        for attempt in 0..<2 {
+            if attempt > 0 {
+                try? await Task.sleep(for: .milliseconds(800))
+            }
+            do {
+                try await UIApplication.shared.setAlternateIconName(icon.alternateName)
+                lastError = nil
+                break
+            } catch {
+                lastError = error
+                let nsError = error as NSError
+                DiagnosticsLog.shared.add(
+                    "native",
+                    "Changing the icon to \(icon.rawValue) failed (attempt \(attempt + 1)): \(nsError.domain) \(nsError.code), \(nsError.localizedDescription)"
+                )
+                if UIApplication.shared.alternateIconName == icon.alternateName { break }
+            }
+        }
+        if let lastError, UIApplication.shared.alternateIconName != icon.alternateName {
+            errorMessage = lastError.localizedDescription
+        } else {
             selected = icon
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 }
