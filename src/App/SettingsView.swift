@@ -6,6 +6,7 @@ struct SettingsView: View {
 
     @Environment(AppLock.self) private var lock
     @Environment(\.dismiss) private var dismiss
+    @State private var icon = AppIcon.current
 
     var body: some View {
         NavigationStack {
@@ -23,6 +24,17 @@ struct SettingsView: View {
                     Text(AppLock.isAvailable
                         ? "Cloudroll locks whenever you leave it. Your passcode works too."
                         : "Set a passcode in the Settings app to lock Cloudroll.")
+                }
+
+                Section {
+                    NavigationLink {
+                        AppIconPicker(selected: $icon)
+                    } label: {
+                        HStack(spacing: 12) {
+                            AppIconImage(icon: icon, size: 29)
+                            Text("App Icon")
+                        }
+                    }
                 }
 
                 Section {
