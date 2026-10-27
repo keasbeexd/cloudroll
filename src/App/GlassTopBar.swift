@@ -15,6 +15,8 @@ struct GlassTopBar: View {
     let onMore: () -> Void
     let onSearch: (String) -> Void
     let onUpload: (UploadCenter.Source) -> Void
+    /// Cloudroll's own settings, offered on the timeline.
+    var onSettings: (() -> Void)?
 
     @State private var isSearching = false
     @State private var query = ""
@@ -71,6 +73,9 @@ struct GlassTopBar: View {
                     if actions.contains(where: \.isUpload) && !showsUpload {
                         uploadMenu
                     }
+                    if let onSettings {
+                        iconButton("Cloudroll Settings", "gearshape", action: onSettings)
+                    }
                     if showsMore {
                         iconButton("More", "ellipsis", action: onMore)
                     }
@@ -83,7 +88,7 @@ struct GlassTopBar: View {
     }
 
     private var hasTrailing: Bool {
-        showsSearch || showsUpload || !actions.isEmpty || showsMore
+        showsSearch || showsUpload || !actions.isEmpty || showsMore || onSettings != nil
     }
 
     private var uploadMenu: some View {

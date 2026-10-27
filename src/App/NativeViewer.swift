@@ -33,6 +33,9 @@ struct NativeViewer: View {
     /// The motion part of a Live Photo, played over the still.
     @State private var livePlayer: AVPlayer?
     @State private var livePlaying = false
+    @State private var showsEditor = false
+    /// Bumped after an edit, so the photo loads again.
+    @State private var revision = 0
 
     var body: some View {
         ZStack {
@@ -70,7 +73,7 @@ struct NativeViewer: View {
         .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { showsChrome.toggle() } }
         .simultaneousGesture(swipe)
         // Keyed on the URLs, so toggling Favorite doesn't reload the photo.
-        .task(id: media) {
+        .task(id: MediaLoad(media: media, revision: revision)) {
             var settle = Transaction()
             settle.disablesAnimations = true
             withTransaction(settle) { offset = .zero }
@@ -82,6 +85,16 @@ struct NativeViewer: View {
             PhotoInfoSheet(photo: photo, controller: controller)
                 .presentationDetents([.medium, .large])
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+        }
+        .fullScreenCover(isPresented: $showsEditor) {
+            PhotoEditorView(fileID: photo.fileid) { changed in
+                showsEditor = false
+                guard changed else { return }
+                Task {
+                    await ShellImageLoader.shared.forget([media.preview, media.full])
+                    revision += 1
+                }
+            }
         }
         .onChange(of: isZoomed) { _, zoomed in
             if zoomed { stopLive() }
@@ -159,9 +172,15 @@ struct NativeViewer: View {
                     .padding(.horizontal, 14)
                     .frame(height: 44)
                     .modifier(GlassBackground(shape: Capsule()))
-                if photo.editable == true {
-                    // Opens Memories' editor; the native viewer hides while it's open.
+                if photo.editable == true || (photo.local && !photo.video) {
+                    // Phone photos open Cloudroll's editor. Server photos open Memories' one,
+                    // and the native viewer hides while it's open.
                     Button {
+                        if photo.local {
+                            stopLive()
+                            showsEditor = true
+                            return
+                        }
                         Task {
                             if !(await controller.perform(.edit)) {
                                 onError("Editing isn't available for this photo.")
@@ -380,6 +399,12 @@ struct NativeViewer: View {
         let date = Date(timeIntervalSince1970: TimeInterval(photo.dayid) * 86400)
         return date.formatted(Date.FormatStyle(date: .long, time: .omitted, timeZone: TimeZone(identifier: "UTC")!))
     }
+}
+
+/// What the viewer loads, plus a revision for reloading the same photo after an edit.
+private struct MediaLoad: Hashable {
+    let media: ViewerMedia
+    let revision: Int
 }
 
 /// Date, camera, file, location, people and albums for the current photo, from what Memories

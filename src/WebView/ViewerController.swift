@@ -50,8 +50,10 @@ struct ViewerMedia: Equatable, Hashable {
         let video: String
         var live: String?
         if photo.local {
-            preview = "\(o)/image/preview/\(photo.fileid)?x=1024&y=1024"
-            full = "\(o)/image/full/\(Self.encode(photo.auid))?size=2560"
+            // The etag (the modification date) changes when the photo is edited.
+            let etag = Self.encode(photo.etag)
+            preview = "\(o)/image/preview/\(photo.fileid)?c=\(etag)&x=1024&y=1024"
+            full = "\(o)/image/full/\(Self.encode(photo.auid))?size=2560&c=\(etag)"
             video = "\(o)/video/full/\(photo.fileid)"
         } else {
             let api = "\(o)\(webRoot)/index.php/apps/memories/api"
