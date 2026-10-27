@@ -60,10 +60,10 @@ struct PhotoEdit: Codable, Equatable {
             output = filter.outputImage ?? output
         }
         if warmth != 0 {
-            // Telling Core Image the light was cooler than daylight makes the photo warmer.
+            // Core Image corrects from `neutral` to `targetNeutral`; a higher source temperature warms the photo.
             let filter = CIFilter.temperatureAndTint()
             filter.inputImage = output
-            filter.neutral = CIVector(x: 6500 - warmth * 2500, y: 0)
+            filter.neutral = CIVector(x: 6500 + warmth * 2500, y: 0)
             filter.targetNeutral = CIVector(x: 6500, y: 0)
             output = filter.outputImage ?? output
         }
