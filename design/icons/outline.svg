@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 100 100">
+  <!-- Alternate icon "Outline": a cloud drawn as an open line, so it reads as a C. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2A3B68"/>
+      <stop offset="1" stop-color="#0F1730"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.45" cy="0.45" r="0.5">
+      <stop offset="0" stop-color="#4A62A3" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#4A62A3" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="dot" cx="0.35" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#C4EDFF"/>
+      <stop offset="1" stop-color="#5BB6EE"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#04081A" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <rect width="100" height="100" fill="url(#bg)"/>
+  <rect width="100" height="100" fill="url(#glow)"/>
+  <g filter="url(#shadow)" transform="translate(-2 -2)">
+    <path d="M72 70 H36 A15 15 0 0 1 33 41 A20 20 0 0 1 70 34" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="76" cy="52" r="5" fill="url(#dot)"/>
+  </g>
+</svg>

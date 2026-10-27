@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 100 100">
+  <!-- Alternate icon "Golden Hour": a retro sun over a striped horizon. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#26386A"/>
+      <stop offset="1" stop-color="#0D1530"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="22" x2="0" y2="78" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD37A"/>
+      <stop offset="0.5" stop-color="#FFA23E"/>
+      <stop offset="0.5" stop-color="#FF6A45"/>
+      <stop offset="1" stop-color="#E23E2E"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="3.5" flood-color="#FF8A3C" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <rect width="100" height="100" fill="url(#bg)"/>
+  <circle cx="50" cy="50" r="28" fill="url(#sun)" filter="url(#glow)"/>
+  <g stroke="#14204A" stroke-width="3">
+    <line x1="21" y1="50" x2="79" y2="50"/>
+    <line x1="23" y1="58" x2="77" y2="58"/>
+    <line x1="27" y1="67" x2="73" y2="67"/>
+    <line x1="36" y1="75" x2="64" y2="75"/>
+  </g>
+</svg>

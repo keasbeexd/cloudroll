@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 100 100">
+  <!-- Alternate icon "Grid": four photo tiles, like the timeline, one with a cloud. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#342A5A"/>
+      <stop offset="1" stop-color="#16112C"/>
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="1.6" stdDeviation="1.6" flood-color="#05030F" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <rect width="100" height="100" fill="url(#bg)"/>
+  <g filter="url(#shadow)">
+    <rect x="18" y="18" width="30" height="30" rx="7" fill="#FF5A3C"/>
+    <rect x="52" y="18" width="30" height="30" rx="7" fill="#FFB23E"/>
+    <rect x="18" y="52" width="30" height="30" rx="7" fill="#1FB5A5"/>
+    <rect x="52" y="52" width="30" height="30" rx="7" fill="#7FD3F7"/>
+  </g>
+  <g fill="url(#shade)">
+    <rect x="18" y="18" width="30" height="30" rx="7"/>
+    <rect x="52" y="18" width="30" height="30" rx="7"/>
+    <rect x="18" y="52" width="30" height="30" rx="7"/>
+    <rect x="52" y="52" width="30" height="30" rx="7"/>
+  </g>
+  <g fill="#FFFFFF">
+    <circle cx="61" cy="68" r="4.5"/>
+    <circle cx="67" cy="65" r="6"/>
+    <circle cx="73" cy="69" r="3.8"/>
+    <rect x="57" y="67" width="20" height="5.5" rx="2.75"/>
+  </g>
+</svg>

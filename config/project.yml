@@ -66,6 +66,10 @@ targets:
         # relative to the generated project, which lives in the repo root.
         INFOPLIST_FILE: config/Info.plist
         TARGETED_DEVICE_FAMILY: "1"
+        # Icons are rendered from design/icons/ by scripts/render-icons.sh. The alternates
+        # are offered in Settings (AppIconPicker.swift); the compiler adds them to Info.plist.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Sunset AppIcon-Sky AppIcon-Noir AppIcon-Lens AppIcon-Outline AppIcon-Film AppIcon-Aperture AppIcon-GoldenHour AppIcon-Instant AppIcon-Grid"
     scheme:
       testTargets: [CloudrollTests]
   CloudrollTests:
