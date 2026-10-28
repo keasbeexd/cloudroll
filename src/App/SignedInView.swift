@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 struct SignedInView: View {
-    let credential: Credential
+    let account: Account
     let onSignOut: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
@@ -92,7 +92,8 @@ struct SignedInView: View {
         if let source {
             MemoriesWebView(
                 source: source,
-                credential: credential,
+                credential: account.credential,
+                dataStore: AccountDataStore.store(for: account),
                 navigation: navigation,
                 selection: selection,
                 viewer: viewer,
@@ -231,7 +232,7 @@ struct SignedInView: View {
     private func prepare() async {
         guard source == nil else { return }
         do {
-            let prepared = try await ShellHost.shared.prepare(credential)
+            let prepared = try await ShellHost.shared.prepare(account.credential)
             source = prepared.source
             toast = prepared.notice
         } catch is CancellationError {

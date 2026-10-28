@@ -29,7 +29,7 @@ Cloudroll is free, with every feature included. It's funded by optional donation
 
 - [x] Face ID app lock (Cloudroll settings: the gear on the timeline, or touch and hold the tab bar)
 - [x] Editing phone photos: light and colour, filters, rotate and crop, saved through PhotoKit so Photos can revert it; Live Photos stay live
-- [ ] Multiple servers or accounts
+- [x] Multiple servers or accounts: switch in Settings > Accounts, each with its own web data ([0007](decisions/0007-multiple-accounts.md))
 - [x] Batch save originals to Camera Roll (Save to Photos in the selection toolbar)
 - [x] App icon (reel cloud, with dark and tinted versions) and ten alternate icons in Settings, rendered from `design/icons/` by `scripts/render-icons.sh`. Which alternates a tip unlocks is decided with the tip jar; until then all are free
 - [ ] Tip jar (StoreKit 2 consumables) in Settings, plus a one-time ask after 30 days

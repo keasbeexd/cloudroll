@@ -12,6 +12,7 @@ enum SessionError: LocalizedError {
 struct MemoriesWebView: UIViewRepresentable {
     let source: MemoriesSource
     let credential: Credential
+    let dataStore: WKWebsiteDataStore
     let navigation: WebNavigation
     let selection: SelectionController
     let viewer: ViewerController
@@ -25,6 +26,7 @@ struct MemoriesWebView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        config.websiteDataStore = dataStore
         config.allowsInlineMediaPlayback = true
         config.applicationNameForUserAgent = HTTP.userAgent
         if case .shell = source {

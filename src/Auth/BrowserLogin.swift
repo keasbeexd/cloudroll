@@ -8,8 +8,9 @@ struct BrowserLogin {
     private let flow = LoginFlow()
     private let anchorProvider = KeyWindowAnchor()
 
-    /// Throws `CancellationError` when the user closes the sheet.
-    func signIn(server: URL) async throws -> Credential {
+    /// Throws `CancellationError` when the user closes the sheet. `privately` keeps Safari's
+    /// cookies out, so adding a second account on the same server doesn't reuse the first.
+    func signIn(server: URL, privately: Bool = false) async throws -> Credential {
         let start = try await flow.start(server: server)
         let polling = Task { try await flow.waitForCredential(start.poll) }
 
@@ -18,6 +19,7 @@ struct BrowserLogin {
             polling.cancel()
         }
         session.presentationContextProvider = anchorProvider
+        session.prefersEphemeralWebBrowserSession = privately
         guard session.start() else {
             polling.cancel()
             throw LoginError.browserUnavailable

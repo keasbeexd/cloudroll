@@ -50,7 +50,8 @@ actor PhotoLibrary {
     static let recentsID = "recents"
 
     private let enabledKey = "localFolders.enabled"
-    private let remoteKey = "localPhotos.hasRemote"
+    /// Which phone photos have a server copy differs per account.
+    private var remoteKey = PhotoLibrary.remoteKey(for: nil)
 
     private var index: [Int: [String]]?
     private var identifiers: [Int: String] = [:]
@@ -60,6 +61,15 @@ actor PhotoLibrary {
     /// await lets the next one in, so they share one copy instead of racing on the same file.
     private var videoExports: [URL: Task<URL, Error>] = [:]
     private lazy var hasRemote = Set(UserDefaults.standard.stringArray(forKey: remoteKey) ?? [])
+
+    nonisolated static func remoteKey(for account: UUID?) -> String {
+        account.map { "localPhotos.hasRemote.\($0.uuidString)" } ?? "localPhotos.hasRemote"
+    }
+
+    func use(account: UUID) {
+        remoteKey = Self.remoteKey(for: account)
+        hasRemote = Set(UserDefaults.standard.stringArray(forKey: remoteKey) ?? [])
+    }
 
     // MARK: Access
 

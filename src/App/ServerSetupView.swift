@@ -1,7 +1,9 @@
 import SwiftUI
 
 struct ServerSetupView: View {
+    var title = "Cloudroll"
     let isBusy: Bool
+    var onCancel: (() -> Void)?
     let onConnect: (String) -> Void
 
     @State private var input = ""
@@ -32,7 +34,14 @@ struct ServerSetupView: View {
                 }
                 .disabled(isBusy)
             }
-            .navigationTitle("Cloudroll")
+            .navigationTitle(title)
+            .toolbar {
+                if let onCancel {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel", action: onCancel)
+                    }
+                }
+            }
         }
     }
 }

@@ -47,6 +47,12 @@ actor ShellImageLoader {
         }
     }
 
+    /// The shell's URLs are the same for every account, so switching drops everything.
+    func forgetAll() {
+        cache.removeAllObjects()
+        session.configuration.urlCache?.removeAllCachedResponses()
+    }
+
     private static func cost(of image: UIImage) -> Int {
         let scale = image.scale
         return Int(image.size.width * scale * image.size.height * scale * 4)
