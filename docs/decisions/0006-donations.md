@@ -27,3 +27,16 @@ The README gets a Support section with the yearly costs (the Apple Developer Pro
 - Tips are consumables, so nothing has to be restored after a reinstall and nothing is stored about who tipped.
 - In App Store Connect the tips are named and described as tips, with no promised content.
 - Check the Review Guidelines again (3.1.1, 3.2.1) before submitting, because these rules have changed often since 2024.
+
+## App Store Connect setup
+
+Three consumable in-app purchases, named and described as tips:
+
+| Product id | Reference name | Price |
+| --- | --- | --- |
+| `io.github.keasbeexd.cloudroll.tip.small` | Small tip | US$1.99 |
+| `io.github.keasbeexd.cloudroll.tip.medium` | Medium tip | US$4.99 |
+| `io.github.keasbeexd.cloudroll.tip.large` | Large tip | US$9.99 |
+
+The app lists whatever of these the App Store returns, sorted by price, and finishes every verified transaction, including ones that complete later (Ask to Buy). The one-time ask is a sheet shown 30 days after first use, never while uploading, sharing, deleting, viewing a photo, selecting or locked.
+

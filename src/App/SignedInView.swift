@@ -6,6 +6,7 @@ struct SignedInView: View {
     let onSignOut: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(AppLock.self) private var lock
     @State private var source: MemoriesSource?
     @State private var loadError: String?
     @State private var toast: String?
@@ -14,6 +15,7 @@ struct SignedInView: View {
     @State private var selection = SelectionController()
     @State private var viewer = ViewerController()
     @State private var showsSettings = false
+    @State private var showsTipAsk = false
     @State private var showsPhotoAccess = false
     @AppStorage("photoAccess.asked") private var askedForPhotoAccess = false
     @AppStorage(TimelineSource.storageKey) private var timelineSource = TimelineSource.all
@@ -52,6 +54,13 @@ struct SignedInView: View {
                 .presentationDetents([.medium])
             }
             .task(id: source) { await offerPhotoAccess() }
+            .task(id: source) { await askForTipOnce() }
+            .sheet(isPresented: $showsTipAsk) {
+                NavigationStack {
+                    TipJarView(onDismiss: { showsTipAsk = false })
+                }
+                .presentationDetents([.medium, .large])
+            }
             .confirmationDialog(
                 deleteQuestion,
                 isPresented: Binding(
@@ -269,6 +278,24 @@ struct SignedInView: View {
             guard cancelledToken != token else { return }
             loadError = error.localizedDescription
         }
+    }
+
+    /// Once, 30 days after first use, and only when nothing else is going on.
+    private func askForTipOnce() async {
+        guard source != nil, TipJar.shared.shouldAsk else { return }
+        // Let the timeline settle before asking.
+        guard (try? await Task.sleep(for: .seconds(20))) != nil else { return }
+        let busy = UploadCenter.shared.progress != nil
+            || ShareCenter.shared.busyMessage != nil
+            || DeleteChoiceCenter.shared.pendingCount != nil
+            || viewer.state.open
+            || selection.state.active
+            || showsSettings
+            || showsPhotoAccess
+            || lock.isLocked
+        guard !busy, scenePhase == .active else { return }
+        TipJar.shared.markAsked()
+        showsTipAsk = true
     }
 
     private func resumeShell() async {
