@@ -99,6 +99,12 @@ final class AppModel {
 
     /// Stops the shell and drops caches keyed by its URLs, which every account shares.
     private func closeCurrent() async {
+        // The old page stays on screen until SwiftUI replaces it, and its requests fail once
+        // the shell stops. Cut it off first so those failures don't fill Diagnostics.
+        if let webView = PageState.shared.webView {
+            webView.configuration.userContentController.removeScriptMessageHandler(forName: NativeBridgeScript.handlerName)
+            webView.stopLoading()
+        }
         await ShellHost.shared.stop()
         await ShellImageLoader.shared.forgetAll()
         await LiveVideoLoader.shared.forgetAll()
