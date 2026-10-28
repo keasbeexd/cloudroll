@@ -1,6 +1,10 @@
 import Foundation
 
 enum NextcloudAPI {
+    /// The first requests after opening an account; the default 60 s felt like a hang
+    /// when the server was down.
+    private static let connectTimeout: TimeInterval = 15
+
     /// Authenticated so the response includes the user id; `manifest=1` asks Memories 9+
     /// for the signed asset manifest (older versions ignore it).
     static func describeMemories(_ credential: Credential) async throws -> MemoriesInfo {
@@ -9,7 +13,7 @@ enum NextcloudAPI {
         guard let url = components?.url else {
             throw ProxyError(reason: "invalid server address \(credential.server)")
         }
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url, timeoutInterval: connectTimeout)
         request.setValue(HTTP.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(credential.authorizationHeader, forHTTPHeaderField: "Authorization")
 
@@ -21,7 +25,7 @@ enum NextcloudAPI {
 
     /// Reads the folder Memories' scripts are served from out of the server's Memories page.
     static func memoriesScriptBase(_ credential: Credential, page: URL) async throws -> URL {
-        var request = URLRequest(url: page)
+        var request = URLRequest(url: page, timeoutInterval: connectTimeout)
         request.setValue(HTTP.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(credential.authorizationHeader, forHTTPHeaderField: "Authorization")
         request.setValue("text/html", forHTTPHeaderField: "Accept")

@@ -18,6 +18,9 @@ struct SignedInView: View {
     @AppStorage("photoAccess.asked") private var askedForPhotoAccess = false
     @AppStorage(TimelineSource.storageKey) private var timelineSource = TimelineSource.all
     @State private var reloadToken = UUID()
+    /// Offered once preparing takes a while, e.g. when the server is down.
+    @State private var showsCancel = false
+    @State private var cancelledToken: UUID?
 
     var body: some View {
         content
@@ -76,7 +79,12 @@ struct SignedInView: View {
                 Button("Retry") {
                     loadError = nil
                     source = nil
+                    showsCancel = false
                     reloadToken = UUID()
+                }
+                Button("Settings") {
+                    loadError = nil
+                    showsSettings = true
                 }
                 Button("Sign out", role: .destructive) {
                     loadError = nil
@@ -109,6 +117,22 @@ struct SignedInView: View {
             VStack(spacing: 12) {
                 ProgressView()
                 Text("Preparing Memories…").foregroundStyle(.secondary)
+                if showsCancel && loadError == nil {
+                    Text("Connecting to \(account.credential.server.host() ?? "your server")")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Button("Cancel") {
+                        cancelledToken = reloadToken
+                        loadError = "Cloudroll stopped trying to reach \(account.credential.server.host() ?? "the server"). "
+                            + "Check that it's online, then retry, or switch accounts in Settings."
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.top, 8)
+                }
+            }
+            .task(id: reloadToken) {
+                guard (try? await Task.sleep(for: .seconds(5))) != nil else { return }
+                withAnimation { showsCancel = true }
             }
         }
     }
@@ -231,13 +255,18 @@ struct SignedInView: View {
 
     private func prepare() async {
         guard source == nil else { return }
+        let token = reloadToken
+        await PhotoLibrary.shared.use(account: account.id)
         do {
             let prepared = try await ShellHost.shared.prepare(account.credential)
+            // The user gave up on this attempt; a retry starts a new one.
+            guard cancelledToken != token else { return }
             source = prepared.source
             toast = prepared.notice
         } catch is CancellationError {
             // The view went away or a retry started a new attempt.
         } catch {
+            guard cancelledToken != token else { return }
             loadError = error.localizedDescription
         }
     }
