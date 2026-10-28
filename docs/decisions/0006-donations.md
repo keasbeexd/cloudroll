@@ -9,7 +9,7 @@ Cloudroll is free, with every feature included. The one-time Pro unlock planned 
 Support comes from donations through two channels:
 
 - **In the app:** a tip jar using StoreKit 2 consumables at three sizes (around $1.99, $4.99 and $9.99). The jar is a "Support Cloudroll" row in Settings.
-- **Outside the app:** GitHub Sponsors and Ko-fi, set in `.github/FUNDING.yml` and linked from the README and the website. The app doesn't link to them.
+- **Outside the app:** GitHub Sponsors and Ko-fi, set once for every repository of the account in [`keasbeexd/.github`](https://github.com/keasbeexd/.github) (`.github/FUNDING.yml`) and linked from the README and the website. The app doesn't link to them.
 
 Any tip unlocks a small set of supporter app icons. Every other icon stays free, and tips unlock nothing else. Apart from the Settings row, the app asks once: a dismissible line in the first "What's new" sheet after a user has used the app for 30 days. It never asks again, and never while something is uploading, being deleted or being shared.
 
