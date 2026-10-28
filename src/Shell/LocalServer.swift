@@ -63,7 +63,7 @@ actor LocalServer {
 }
 
 struct LocalRequestHandler: HTTPHandler {
-    private static let log = Logger(subsystem: "dev.keasbeexd.cloudroll", category: "shell")
+    private static let log = Logger(subsystem: "io.github.keasbeexd.cloudroll", category: "shell")
 
     let authGuard: LocalAuthGuard
     /// Verified asset snapshot from `AssetStore`.

@@ -61,7 +61,7 @@ targets:
     settings:
       base:
         # Placeholder until the App Store bundle ID is registered.
-        PRODUCT_BUNDLE_IDENTIFIER: dev.keasbeexd.cloudroll
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.keasbeexd.cloudroll
         # XcodeGen writes info.path next to this spec but would reference it
         # relative to the generated project, which lives in the repo root.
         INFOPLIST_FILE: config/Info.plist
@@ -83,5 +83,5 @@ targets:
       - target: Cloudroll
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.keasbeexd.cloudroll.tests
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.keasbeexd.cloudroll.tests
         GENERATE_INFOPLIST_FILE: YES
