@@ -1,6 +1,6 @@
 # Roadmap
 
-Cloudroll is free, with every feature included. It's funded by optional donations: an in-app tip jar, GitHub Sponsors and Ko-fi ([0006](decisions/0006-donations.md)). Tips unlock a few supporter app icons and nothing else.
+Cloudroll is free, with every feature included. It's funded by optional donations: an in-app tip jar, GitHub Sponsors and Ko-fi ([0006](decisions/0006-donations.md)). Tips are donations: they unlock nothing.
 
 ## Phase 0: Foundations
 
@@ -31,7 +31,7 @@ Cloudroll is free, with every feature included. It's funded by optional donation
 - [x] Editing phone photos: light and colour, filters, rotate and crop, saved through PhotoKit so Photos can revert it; Live Photos stay live
 - [x] Multiple servers or accounts: switch in Settings > Accounts, each with its own web data ([0007](decisions/0007-multiple-accounts.md))
 - [x] Batch save originals to Camera Roll (Save to Photos in the selection toolbar)
-- [x] App icon (reel cloud, with dark and tinted versions) and ten alternate icons in Settings, rendered from `design/icons/` by `scripts/render-icons.sh`. Which alternates a tip unlocks is decided with the tip jar; until then all are free
+- [x] App icon (reel cloud, with dark and tinted versions) and ten alternate icons in Settings, rendered from `design/icons/` by `scripts/render-icons.sh`.
 - [ ] Tip jar (StoreKit 2 consumables) in Settings, plus a one-time ask after 30 days
 - [x] `FUNDING.yml` (GitHub Sponsors, Ko-fi, account-wide in `keasbeexd/.github`) and a README Support section with costs and what donations paid for
 
