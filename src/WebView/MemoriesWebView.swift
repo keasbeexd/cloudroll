@@ -74,6 +74,7 @@ struct MemoriesWebView: UIViewRepresentable {
             PageState.shared.webView = webView
         }
         context.coordinator.load(in: webView)
+        Task { await AccountDataStore.cleanUp() }
         return webView
     }
 

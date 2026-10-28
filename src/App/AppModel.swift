@@ -10,31 +10,20 @@ final class AppModel {
     /// Changes whenever an account is opened, so its views start fresh even for the same account.
     private(set) var session = UUID()
     private(set) var isSigningIn = false
-    /// False until old web data is cleaned up, so no web view uses a store being deleted.
-    private(set) var isReady = false
     var errorMessage: String?
 
     var current: Account? { accounts.first { $0.id == currentID } }
 
     init() {
         do {
-            let migrated = try AccountStore.migrateLegacy()
+            if try AccountStore.migrateLegacy() != nil {
+                AccountDataStore.clearLegacyLater()
+            }
             accounts = try AccountStore.load()
             currentID = AccountStore.currentID.flatMap { id in accounts.first { $0.id == id }?.id } ?? accounts.first?.id
-            Task {
-                if migrated != nil { await AccountDataStore.clearLegacyDefault() }
-                await finishLaunch()
-            }
         } catch {
             errorMessage = error.localizedDescription
-            isReady = true
         }
-    }
-
-    private func finishLaunch() async {
-        await AccountDataStore.removeUnused(keeping: accounts)
-        if let currentID { await PhotoLibrary.shared.use(account: currentID) }
-        isReady = true
     }
 
     /// Signs in to a new account, or refreshes one that's already in the list, and opens it.
@@ -98,7 +87,7 @@ final class AppModel {
             AccountStore.currentID = nil
             if let next = accounts.first { await open(next.id) }
         }
-        await AccountDataStore.clear(id)
+        AccountDataStore.clear(id)
 
         do {
             try await NextcloudAPI.revokeAppPassword(account.credential)

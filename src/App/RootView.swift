@@ -22,9 +22,7 @@ struct RootView: View {
 
     @ViewBuilder
     private var content: some View {
-        if !model.isReady {
-            ProgressView()
-        } else if let account = model.current {
+        if let account = model.current {
             SignedInView(account: account) {
                 Task { await model.signOut(account.id) }
             }
