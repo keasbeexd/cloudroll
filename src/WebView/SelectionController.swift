@@ -57,7 +57,7 @@ final class SelectionController {
         }
     }
 
-    private static let log = Logger(subsystem: "dev.keasbeexd.cloudroll", category: "selection")
+    private static let log = Logger(subsystem: "io.github.keasbeexd.cloudroll", category: "selection")
 
     private(set) var state = SelectionState.inactive
     @ObservationIgnored weak var webView: WKWebView?

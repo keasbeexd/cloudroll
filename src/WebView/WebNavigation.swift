@@ -77,7 +77,7 @@ final class WebNavigation {
         pendingTab = nil
     }
 
-    private nonisolated static let log = Logger(subsystem: "dev.keasbeexd.cloudroll", category: "navigation")
+    private nonisolated static let log = Logger(subsystem: "io.github.keasbeexd.cloudroll", category: "navigation")
 
     /// Title for the native header: Memories' own, else derived from the route.
     var headerTitle: String {

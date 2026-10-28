@@ -100,7 +100,7 @@ final class ViewerController {
         }
     }
 
-    private static let log = Logger(subsystem: "dev.keasbeexd.cloudroll", category: "viewer")
+    private static let log = Logger(subsystem: "io.github.keasbeexd.cloudroll", category: "viewer")
 
     private(set) var state = ViewerState.closed
     @ObservationIgnored weak var webView: WKWebView?
