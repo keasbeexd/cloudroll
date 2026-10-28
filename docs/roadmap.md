@@ -33,7 +33,7 @@ Cloudroll is free, with every feature included. It's funded by optional donation
 - [x] Batch save originals to Camera Roll (Save to Photos in the selection toolbar)
 - [x] App icon (reel cloud, with dark and tinted versions) and ten alternate icons in Settings, rendered from `design/icons/` by `scripts/render-icons.sh`. Which alternates a tip unlocks is decided with the tip jar; until then all are free
 - [ ] Tip jar (StoreKit 2 consumables) in Settings, plus a one-time ask after 30 days
-- [ ] `FUNDING.yml` (GitHub Sponsors, Ko-fi) and a README Support section with costs and what donations paid for
+- [x] `FUNDING.yml` (GitHub Sponsors, Ko-fi, account-wide in `keasbeexd/.github`) and a README Support section with costs and what donations paid for
 
 ## Phase 3: App Store
 
