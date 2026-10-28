@@ -8,6 +8,7 @@ struct RootView: View {
     var body: some View {
         content
             .environment(lock)
+            .environment(model)
             .onChange(of: scenePhase, initial: true) { _, phase in lock.sceneChanged(to: phase) }
             .alert("Cloudroll", isPresented: Binding(
                 get: { model.errorMessage != nil },
@@ -21,10 +22,13 @@ struct RootView: View {
 
     @ViewBuilder
     private var content: some View {
-        if let credential = model.credential {
-            SignedInView(credential: credential) {
-                Task { await model.signOut() }
+        if !model.isReady {
+            ProgressView()
+        } else if let account = model.current {
+            SignedInView(account: account) {
+                Task { await model.signOut(account.id) }
             }
+            .id(model.session)
         } else {
             ServerSetupView(isBusy: model.isSigningIn) { input in
                 Task { await model.signIn(serverInput: input) }

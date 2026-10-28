@@ -44,6 +44,11 @@ actor LiveVideoLoader {
         return try await task.value
     }
 
+    /// Files are named after the shell's URLs, which repeat across accounts.
+    func forgetAll() {
+        try? FileManager.default.removeItem(at: folder)
+    }
+
     /// `cookie` is "name=value", as the viewer sends it.
     private func setCookie(_ cookie: String, for url: URL) {
         let parts = cookie.split(separator: "=", maxSplits: 1).map(String.init)

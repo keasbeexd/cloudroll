@@ -34,6 +34,27 @@ enum NextcloudAPI {
         return base
     }
 
+    /// The user's display name, for the account list. Nil if the server doesn't say.
+    static func displayName(_ credential: Credential) async throws -> String? {
+        struct Response: Decodable {
+            struct OCS: Decodable {
+                struct User: Decodable { let displayname: String? }
+                let data: User
+            }
+            let ocs: OCS
+        }
+        var request = URLRequest(url: credential.server.appending(path: "ocs/v2.php/cloud/user"))
+        request.setValue(credential.authorizationHeader, forHTTPHeaderField: "Authorization")
+        request.setValue("true", forHTTPHeaderField: "OCS-APIRequest")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(HTTP.userAgent, forHTTPHeaderField: "User-Agent")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try HTTP.require(200, response, context: "Reading the account name")
+        let name = try JSONDecoder().decode(Response.self, from: data).ocs.data.displayname
+        return name?.isEmpty == false ? name : nil
+    }
+
     /// Deletes the app password on the server so it no longer appears under "Devices & sessions".
     static func revokeAppPassword(_ credential: Credential) async throws {
         var request = URLRequest(url: credential.server.appending(path: "ocs/v2.php/core/apppassword"))
