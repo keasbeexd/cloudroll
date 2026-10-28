@@ -38,7 +38,7 @@ Cloudroll is free, with every feature included. It's funded by optional donation
 ## Phase 3: App Store
 
 - [ ] Apple Developer Program enrollment (individual), TestFlight via fastlane
-- [ ] Register the bundle ID (`app.cloudroll.ios` is a placeholder)
+- [ ] Register the bundle ID `dev.keasbeexd.cloudroll` (reverse of keasbeexd.dev; persisted identifiers such as the Keychain services and the PhotoKit edit format keep their `app.cloudroll` prefix)
 - [ ] Privacy policy (GitHub Pages) and privacy label ("Data not collected")
 - [ ] Screenshots generated in the simulator, store listing, a demo account for Apple's reviewers
 - [ ] Trademark: check the EU/TMview result, avoid Nextcloud and Memories logos, include a "not affiliated" line
