@@ -17,6 +17,14 @@ struct SettingsView: View {
                 accountsSection
 
                 Section {
+                    NavigationLink {
+                        TipJarView()
+                    } label: {
+                        Label("Support Cloudroll", systemImage: "heart")
+                    }
+                }
+
+                Section {
                     Toggle(isOn: Binding(get: { lock.isEnabled }, set: { enabled in
                         Task { await lock.setEnabled(enabled) }
                     })) {

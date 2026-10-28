@@ -32,7 +32,7 @@ Cloudroll is free, with every feature included. It's funded by optional donation
 - [x] Multiple servers or accounts: switch in Settings > Accounts, each with its own web data ([0007](decisions/0007-multiple-accounts.md))
 - [x] Batch save originals to Camera Roll (Save to Photos in the selection toolbar)
 - [x] App icon (reel cloud, with dark and tinted versions) and ten alternate icons in Settings, rendered from `design/icons/` by `scripts/render-icons.sh`.
-- [ ] Tip jar (StoreKit 2 consumables) in Settings, plus a one-time ask after 30 days
+- [ ] Tip jar (StoreKit 2 consumables) in Settings, plus a one-time ask after 30 days. Code done (`TipJar`, `TipJarView`); needs the three products in App Store Connect (see 0006) before it can be tested in TestFlight
 - [x] `FUNDING.yml` (GitHub Sponsors, Ko-fi, account-wide in `keasbeexd/.github`) and a README Support section with costs and what donations paid for
 
 ## Phase 3: App Store
