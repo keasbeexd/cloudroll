@@ -37,7 +37,8 @@ Cloudroll is free, with every feature included. It's funded by optional donation
 
 ## Phase 3: App Store
 
-- [ ] Apple Developer Program enrollment (individual), TestFlight via fastlane
+- [ ] Apple Developer Program enrollment (individual). TestFlight uploads are ready in `.github/workflows/testflight.yml` and need four secrets after enrollment ([0008](decisions/0008-testflight.md))
+- [x] App Store listing draft, privacy label answers and review notes ([docs/app-store/listing.md](app-store/listing.md))
 - [ ] Register the bundle ID `io.github.keasbeexd.cloudroll` (reverse of keasbeexd.github.io, where the site lives; persisted identifiers such as the Keychain services and the PhotoKit edit format keep their `app.cloudroll` prefix)
 - [ ] Privacy policy (GitHub Pages) and privacy label ("Data not collected")
 - [ ] Screenshots generated in the simulator, store listing, a demo account for Apple's reviewers
