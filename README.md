@@ -2,7 +2,7 @@
 
 An iPhone app for [Memories](https://memories.gallery), the photo gallery app for Nextcloud. Not affiliated with Nextcloud GmbH or the Memories project.
 
-Cloudroll is free and stays free. Every feature is included, nothing is held back for supporters, and it's funded only by optional donations (see [Support](#support)).
+Cloudroll is free and open source, with no ads and no tracking. It's supported by optional donations (see [Support](#support)).
 
 ## Status
 
@@ -35,7 +35,7 @@ The Xcode project is generated from `config/project.yml` and isn't committed.
 
 ## Support
 
-Donations are optional and unlock nothing except a few supporter app icons. Every feature stays free ([0006](docs/decisions/0006-donations.md)).
+Donations are optional and help cover development costs and the hours that go into Cloudroll ([0006](docs/decisions/0006-donations.md)).
 
 - In the app: the tip jar in Settings (coming with the App Store release)
 - Outside the app: [GitHub Sponsors](https://github.com/sponsors/keasbeexd) or [Ko-fi](https://ko-fi.com/keasbeexd)
