@@ -183,7 +183,7 @@ struct SignedInView: View {
             GlassTopBar(
                 title: navigation.headerTitle,
                 // Views without a back button of their own (e.g. search results) go back in history.
-                showsBack: header.back || (header.kind == "none" && navigation.highlightedTab == nil),
+                showsBack: header.back || (header.kind == "none" && navigation.currentTab == nil),
                 showsSearch: header.kind == "timeline" || header.kind == "explore",
                 showsUpload: header.kind == "timeline",
                 actions: header.actions,
@@ -233,7 +233,7 @@ struct SignedInView: View {
                         onLongPress: { showsSettings = true }
                     )
                     // Only the main timeline is filtered, so the switch lives on the Photos tab.
-                    if navigation.highlightedTab?.href.hasSuffix("/") == true {
+                    if navigation.currentTab?.href.hasSuffix("/") == true {
                         TimelineSourceButton(source: $timelineSource)
                             .transition(.scale.combined(with: .opacity))
                     }

@@ -119,6 +119,20 @@ final class NavStateTests: XCTestCase {
         XCTAssertFalse(state("/index.php/apps/memories/", enabled: false).showsTabBar)
     }
 
+    @MainActor
+    func testSubPagesKeepTheirParentTabLit() {
+        let navigation = WebNavigation()
+        navigation.update(state("/index.php/apps/memories/explore"))
+        navigation.update(state("/index.php/apps/memories/archive"))
+        XCTAssertNil(navigation.currentTab)
+        XCTAssertEqual(navigation.highlightedTab?.label, "Explore")
+        XCTAssertTrue(navigation.state.showsTabBar)
+
+        navigation.update(state("/index.php/apps/memories/"))
+        XCTAssertEqual(navigation.currentTab?.label, "Photos")
+        XCTAssertEqual(navigation.highlightedTab?.label, "Photos")
+    }
+
     func testBridgeParsesNavState() {
         let json = #"{"enabled":true,"tabs":[{"href":"/a/","label":"Photos"}],"path":"/a/","hash":""}"#
         XCTAssertEqual(
