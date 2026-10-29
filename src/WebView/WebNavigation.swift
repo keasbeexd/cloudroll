@@ -64,9 +64,14 @@ final class WebNavigation {
     private(set) var header = HeaderState.none
     /// Highlighted on tap, before Memories reports the new route, so the bar reacts instantly.
     private var pendingTab: NavState.Tab?
+    /// The tab a sub-page (Archive, search results, …) was opened from.
+    private var parentTab: NavState.Tab?
     @ObservationIgnored weak var webView: WKWebView?
 
-    var highlightedTab: NavState.Tab? { pendingTab ?? state.selectedTab }
+    /// The tab whose own route is showing (or was just tapped); nil on sub-pages.
+    var currentTab: NavState.Tab? { pendingTab ?? state.selectedTab }
+    /// Sub-pages keep their parent tab lit, like pushed views in iOS tab bars.
+    var highlightedTab: NavState.Tab? { currentTab ?? parentTab }
 
     func update(_ header: HeaderState) {
         self.header = header
@@ -75,6 +80,11 @@ final class WebNavigation {
     func update(_ state: NavState) {
         self.state = state
         pendingTab = nil
+        if let tab = state.selectedTab {
+            parentTab = tab
+        } else if let parent = parentTab, !state.tabs.contains(parent) {
+            parentTab = nil
+        }
     }
 
     private nonisolated static let log = Logger(subsystem: "io.github.keasbeexd.cloudroll", category: "navigation")

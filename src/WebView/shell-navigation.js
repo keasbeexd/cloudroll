@@ -30,9 +30,15 @@
   // Scrolling down a list shrinks the native bar, like iOS tab bars.
   let collapsed = false;
   let lastPath = location.pathname;
+  // Memories' native mode drops its bar outside the main tabs (Archive, search, an album),
+  // so the tabs seen last are kept and the native bars stay on those sub-pages.
+  let tabs = [];
   const report = () => {
     scheduled = false;
-    const enabled = !!document.getElementById('mobile-nav');
+    if (document.getElementById('mobile-nav')) {
+      tabs = tabLinks().map((a) => ({ href: new URL(a.href).pathname, label: a.textContent.trim() }));
+    }
+    const enabled = tabs.length > 0;
     if (enabled && !style.isConnected) document.head.appendChild(style);
     document.documentElement.classList.toggle(NATIVE_CLASS, enabled);
 
@@ -40,9 +46,6 @@
       lastPath = location.pathname;
       collapsed = false;
     }
-    const tabs = enabled
-      ? tabLinks().map((a) => ({ href: new URL(a.href).pathname, label: a.textContent.trim() }))
-      : [];
     const header = enabled && !!document.getElementById('mobile-header');
     // Some Memories dialogs (e.g. search) don't add a URL fragment, so look for them too.
     // (Explore has a search field in the page itself, which is not a dialog.)
@@ -106,7 +109,15 @@
 
   window.__cloudrollSelectTab = (href) => {
     const link = tabLinks().find((a) => new URL(a.href).pathname === href);
-    link?.click();
-    return !!link;
+    if (link) {
+      link.click();
+      return true;
+    }
+    if (!tabs.some((tab) => tab.href === href)) return false;
+    // On a sub-page the hidden links are gone; replace the route like they do
+    // (vue-router follows a popstate without state).
+    history.replaceState(null, '', href);
+    dispatchEvent(new PopStateEvent('popstate', { state: null }));
+    return true;
   };
 })();

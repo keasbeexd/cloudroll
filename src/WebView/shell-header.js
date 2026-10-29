@@ -14,7 +14,8 @@
     html.${NATIVE} .top-matter-container .top-matter,
     html.${NATIVE} .top-matter-container .places-top-matter,
     html.${NATIVE} .top-matter-container .face-top-matter,
-    html.${NATIVE} .explore-outer .title { visibility: hidden !important; }
+    /* Only Explore's own heading: cluster names and section titles are .title too. */
+    html.${NATIVE} .explore-outer > div > .title { visibility: hidden !important; }
     /* Search moved to the native header; no blank gap where the field was. */
     html.${NATIVE} .explore-outer > div > .searchbar { display: none !important; }
   `;
@@ -32,7 +33,7 @@
     }
     const explore = document.querySelector('.explore-outer');
     if (explore) {
-      return { kind: 'explore', title: explore.querySelector('.title')?.textContent?.trim() ?? '', back: false, actions: [], more: false };
+      return { kind: 'explore', title: explore.querySelector(':scope > div > .title')?.textContent?.trim() ?? '', back: false, actions: [], more: false };
     }
     const current = matter();
     if (!current) return { kind: 'none', title: '', back: false, actions: [], more: false };
