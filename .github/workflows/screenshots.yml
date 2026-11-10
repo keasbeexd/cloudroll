@@ -1,0 +1,84 @@
+name: Screenshots
+
+# App Store screenshots (6.9" iPhone, 1320 x 2868) against the App Review demo account.
+# Started by hand (Actions → Screenshots → Run workflow) or by pushing to the screenshots branch.
+# Needs three secrets: CLOUDROLL_DEMO_SERVER, CLOUDROLL_DEMO_LOGIN and
+# CLOUDROLL_DEMO_APP_PASSWORD (an app password for the demo user, revocable in its
+# Nextcloud security settings). The SCREENSHOTS flag compiles in the sign-in hook
+# (src/Auth/ScreenshotAccount.swift); no other build has it.
+on:
+  workflow_dispatch:
+  push:
+    branches: [screenshots]
+
+jobs:
+  capture:
+    runs-on: macos-26
+    env:
+      CLOUDROLL_DEMO_SERVER: ${{ secrets.CLOUDROLL_DEMO_SERVER }}
+      CLOUDROLL_DEMO_LOGIN: ${{ secrets.CLOUDROLL_DEMO_LOGIN }}
+      CLOUDROLL_DEMO_APP_PASSWORD: ${{ secrets.CLOUDROLL_DEMO_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check secrets
+        run: |
+          for name in CLOUDROLL_DEMO_SERVER CLOUDROLL_DEMO_LOGIN CLOUDROLL_DEMO_APP_PASSWORD; do
+            if [ -z "${!name}" ]; then echo "Missing secret $name" >&2; exit 1; fi
+          done
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate --spec config/project.yml --project .
+      - name: Boot a 6.9-inch iPhone
+        run: |
+          # The newest Pro Max on the runner; its screenshots are 1320 x 2868.
+          DEVICE_ID=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | endswith("Pro Max"))] | last | .udid')
+          if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
+            echo "No Pro Max simulator on this runner" >&2
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "DEVICE_ID=$DEVICE_ID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$DEVICE_ID"
+          xcrun simctl bootstatus "$DEVICE_ID"
+          xcrun simctl status_bar "$DEVICE_ID" override --time 9:41 --dataNetwork wifi --wifiMode active \
+            --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
+          xcrun simctl privacy "$DEVICE_ID" grant photos io.github.keasbeexd.cloudroll || true
+      - name: Add phone photos
+        run: |
+          # Unsplash photos via picsum.photos, free to use. They're dated today, so they
+          # sit at the top of the timeline above the demo account's server photos.
+          mkdir -p phone-photos
+          for id in 1018 1043 1050; do
+            curl -sfL -o "phone-photos/phone-$id.jpg" "https://picsum.photos/id/$id/1600/1200.jpg"
+          done
+          xcrun simctl addmedia "$DEVICE_ID" phone-photos/*.jpg
+      - name: Capture
+        run: |
+          mkdir -p "$RUNNER_TEMP/shots"
+          xcodebuild -project Cloudroll.xcodeproj -scheme Screenshots \
+            -destination "id=$DEVICE_ID" -resultBundlePath "$RUNNER_TEMP/Screenshots.xcresult" \
+            test CODE_SIGNING_ALLOWED=NO \
+            SWIFT_ACTIVE_COMPILATION_CONDITIONS='DEBUG SCREENSHOTS'
+        env:
+          TEST_RUNNER_SCREENSHOT_DIR: ${{ runner.temp }}/shots
+          TEST_RUNNER_CLOUDROLL_DEMO_SERVER: ${{ secrets.CLOUDROLL_DEMO_SERVER }}
+          TEST_RUNNER_CLOUDROLL_DEMO_LOGIN: ${{ secrets.CLOUDROLL_DEMO_LOGIN }}
+          TEST_RUNNER_CLOUDROLL_DEMO_APP_PASSWORD: ${{ secrets.CLOUDROLL_DEMO_APP_PASSWORD }}
+          TEST_RUNNER_CLOUDROLL_DEMO_NAME: App Review
+      - name: Export attachments
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/shots/attachments"
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/Screenshots.xcresult" \
+            --output-path "$RUNNER_TEMP/shots/attachments" || true
+          ls -la "$RUNNER_TEMP/shots" "$RUNNER_TEMP/shots/attachments"
+      # The accessibility dumps can name the demo server, so the artifact is short-lived
+      # and gets deleted once downloaded.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: ${{ runner.temp }}/shots
+          retention-days: 1

@@ -19,6 +19,9 @@ final class AppModel {
             if try AccountStore.migrateLegacy() != nil {
                 AccountDataStore.clearLegacyLater()
             }
+            #if SCREENSHOTS
+            try ScreenshotAccount.installFromEnvironment()
+            #endif
             accounts = try AccountStore.load()
             currentID = AccountStore.currentID.flatMap { id in accounts.first { $0.id == id }?.id } ?? accounts.first?.id
         } catch {

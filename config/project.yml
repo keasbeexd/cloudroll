@@ -85,3 +85,25 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.keasbeexd.cloudroll.tests
         GENERATE_INFOPLIST_FILE: YES
+  # App Store screenshots, run only by .github/workflows/screenshots.yml (Screenshots scheme).
+  CloudrollScreenshots:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: ../tests/CloudrollScreenshots
+    dependencies:
+      - target: Cloudroll
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.keasbeexd.cloudroll.screenshots
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Cloudroll
+schemes:
+  Screenshots:
+    build:
+      targets:
+        Cloudroll: all
+        CloudrollScreenshots: [test]
+    test:
+      config: Debug
+      targets: [CloudrollScreenshots]
