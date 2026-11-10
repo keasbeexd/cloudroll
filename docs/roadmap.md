@@ -42,7 +42,7 @@ Cloudroll is free, with every feature included. It's funded by optional donation
 - [ ] Register the bundle ID `io.github.keasbeexd.cloudroll` (reverse of keasbeexd.github.io, where the site lives; persisted identifiers such as the Keychain services and the PhotoKit edit format keep their `app.cloudroll` prefix)
 - [ ] Privacy policy (GitHub Pages) and privacy label ("Data not collected")
 - [ ] Screenshots generated in the simulator, store listing, a demo account for Apple's reviewers
-- [ ] Trademark: check the EU/TMview result, avoid Nextcloud and Memories logos, include a "not affiliated" line
+- [x] Trademark: US CLOUDROLL (CITE, reg 5056909) is cancelled, but CITE's EU mark 014736896 (figurative, classes 9/35/42) is live until 2035, plus a Greek national mark. Checked on TMview 2026-11-10; decided to keep the name and launch everywhere. No Nextcloud or Memories logos in the listing or screenshots; "not affiliated" line in the listing and README
 
 ## Phase 4: Updates
 
