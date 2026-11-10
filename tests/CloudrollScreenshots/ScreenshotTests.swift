@@ -7,9 +7,8 @@ import XCTest
 /// shot instead of failing the run, so one run shows everything that went wrong.
 ///
 /// The timeline is a web view whose thumbnails aren't in the accessibility tree, so the
-/// test opens the newest photo by position and then swipes through the native viewer,
-/// whose controls it can read: "Play Live Photo" marks the Live Photo, and the info
-/// sheet shows a map for photos with a location.
+/// test opens photos by their place on screen and then checks the native viewer's
+/// controls, which it can read: "Play Live Photo" for the Live Photo, a map in the info.
 final class ScreenshotTests: XCTestCase {
     private let app = XCUIApplication()
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
@@ -41,54 +40,54 @@ final class ScreenshotTests: XCTestCase {
         pause(12) // the phone photos join the timeline, then thumbnails load
         save("01-timeline")
 
-        guard openNewestPhoto() else { return }
-
         // The newest photos are the phone's, which open Cloudroll's own editor.
-        if app.buttons["Edit"].exists {
+        if openPhoto(at: CGVector(dx: 0.3, dy: 0.3), "newest phone photo") {
             pause(3)
-            save("02-phone-photo")
-            app.buttons["Edit"].tap()
-            pause(4)
-            save("03-editor")
-            let cancel = app.buttons["Cancel"]
-            if cancel.waitForExistence(timeout: 5) { cancel.tap() }
-            let discard = app.buttons["Discard Changes"]
-            if discard.waitForExistence(timeout: 2) { discard.tap() }
-            pause(2)
-        } else {
-            problems.append("The newest photo had no Edit button")
+            save("02-viewer")
+            if tap(app.buttons["Edit"], "Edit") {
+                waitForLoading()
+                save("03-editor")
+                if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() }
+                let discard = app.buttons["Discard Changes"]
+                if discard.waitForExistence(timeout: 2) { discard.tap() }
+                pause(2)
+            }
+            closeViewer()
         }
 
-        var gotLive = false
-        var gotLocation = false
-        for index in 0..<30 where !(gotLive && gotLocation) {
-            if index > 0 {
-                app.swipeLeft()
-                pause(3)
-            }
-            if !gotLive, app.buttons["Play Live Photo"].exists {
-                pause(2)
+        // The demo timeline is the same every run: the aquarium Live Photo is the only
+        // photo of Aug 1, and the San Clemente railway photo (with a location) leads Jul 4.
+        if openPhoto(at: CGVector(dx: 0.16, dy: 0.58), "Live Photo") {
+            pause(4)
+            if app.buttons["Play Live Photo"].exists {
                 save("04-live-photo")
-                gotLive = true
+            } else {
+                problems.append("The Aug 1 photo isn't a Live Photo")
+                save("dbg-live")
             }
-            if !gotLocation, app.buttons["Info"].exists {
-                app.buttons["Info"].tap()
-                pause(4)
+            closeViewer()
+        }
+
+        if openPhoto(at: CGVector(dx: 0.5, dy: 0.76), "photo with a location") {
+            pause(3)
+            if tap(app.buttons["Info"], "Info") {
+                pause(5)
                 if app.maps.firstMatch.exists {
                     save("05-info")
-                    gotLocation = true
+                } else {
+                    problems.append("The Jul 4 photo's info has no map")
+                    save("dbg-info")
                 }
                 dismissInfo()
             }
+            closeViewer()
         }
-        if !gotLive { problems.append("No Live Photo found in 30 photos") }
-        if !gotLocation { problems.append("No photo with a location found in 30 photos") }
 
-        if app.buttons["Close"].exists { app.buttons["Close"].tap() }
-        pause(2)
         if tap(app.buttons["Cloudroll Settings"], "Cloudroll Settings") {
             pause(3)
             save("06-settings")
+        } else {
+            save("dbg-settings")
         }
     }
 
@@ -125,16 +124,31 @@ final class ScreenshotTests: XCTestCase {
         } while Date() < deadline
     }
 
-    /// The first thumbnail sits under the header and the first day's title.
-    private func openNewestPhoto() -> Bool {
-        let window = app.windows.firstMatch
-        for y in [0.22, 0.26, 0.30] {
-            window.coordinate(withNormalizedOffset: CGVector(dx: 0.12, dy: y)).tap()
-            if app.buttons["Info"].waitForExistence(timeout: 8) { return true }
-        }
-        problems.append("Couldn't open the newest photo")
-        save("missing-viewer")
+    /// Taps a thumbnail by its place on screen; the web timeline's photos aren't in the
+    /// accessibility tree.
+    private func openPhoto(at point: CGVector, _ what: String) -> Bool {
+        app.windows.firstMatch.coordinate(withNormalizedOffset: point).tap()
+        if app.buttons["Info"].waitForExistence(timeout: 10) { return true }
+        problems.append("Couldn't open the \(what)")
+        save("dbg-open-\(what.replacingOccurrences(of: " ", with: "-"))")
         return false
+    }
+
+    /// Waits for spinners to go, e.g. while the editor renders its first preview.
+    private func waitForLoading(timeout: TimeInterval = 30) {
+        let deadline = Date().addingTimeInterval(timeout)
+        pause(2)
+        while Date() < deadline, app.activityIndicators.firstMatch.exists { pause(1) }
+        pause(2)
+    }
+
+    private func closeViewer() {
+        if app.buttons["Close"].exists { app.buttons["Close"].tap() }
+        if !app.buttons["Cloudroll Settings"].waitForExistence(timeout: 8) {
+            problems.append("The viewer didn't close")
+            save("dbg-close")
+        }
+        pause(2)
     }
 
     private func dismissInfo() {
