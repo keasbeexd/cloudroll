@@ -54,12 +54,14 @@ jobs:
             curl -sfL -o "phone-photos/phone-$id.jpg" "https://picsum.photos/id/$id/1600/1200.jpg"
           done
           xcrun simctl addmedia "$DEVICE_ID" phone-photos/*.jpg
+      # Signed ad hoc ("Sign to Run Locally") rather than unsigned: the simulator only
+      # grants Keychain access to a signed app.
       - name: Capture
         run: |
           mkdir -p "$RUNNER_TEMP/shots"
           xcodebuild -project Cloudroll.xcodeproj -scheme Screenshots \
             -destination "id=$DEVICE_ID" -resultBundlePath "$RUNNER_TEMP/Screenshots.xcresult" \
-            test CODE_SIGNING_ALLOWED=NO \
+            test CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
             SWIFT_ACTIVE_COMPILATION_CONDITIONS='DEBUG SCREENSHOTS'
         env:
           TEST_RUNNER_SCREENSHOT_DIR: ${{ runner.temp }}/shots
