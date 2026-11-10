@@ -5,6 +5,11 @@ import XCTest
 /// TEST_RUNNER_ variables and builds the app with the SCREENSHOTS flag.
 /// Each step saves a PNG and the accessibility tree, and a missing element skips that
 /// shot instead of failing the run, so one run shows everything that went wrong.
+///
+/// The timeline is a web view whose thumbnails aren't in the accessibility tree, so the
+/// test opens the newest photo by position and then swipes through the native viewer,
+/// whose controls it can read: "Play Live Photo" marks the Live Photo, and the info
+/// sheet shows a map for photos with a location.
 final class ScreenshotTests: XCTestCase {
     private let app = XCUIApplication()
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
@@ -21,96 +26,125 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    override func tearDownWithError() throws {
+        try problems.joined(separator: "\n").write(to: outputDir.appending(path: "problems.txt"), atomically: true, encoding: .utf8)
+    }
+
     func testCaptureScreenshots() throws {
         app.launch()
-        allowPhotoAccessIfAsked()
-
-        guard app.buttons["Cloudroll Settings"].waitForExistence(timeout: 180) else {
+        guard waitForTimeline() else {
             save("00-not-loaded")
             XCTFail("The timeline never loaded")
             return
         }
-        allowPhotoAccessIfAsked()
-        pause(10) // thumbnails
+        allowPhotoAccess()
+        pause(12) // the phone photos join the timeline, then thumbnails load
         save("01-timeline")
 
-        // A server photo with a location, so the info panel shows the map.
-        if openPhoto(named: "IMG_1006") {
-            pause(4)
-            save("02-viewer")
-            if tap(app.buttons["Info"], "Info") {
-                pause(4)
-                save("03-info")
-                app.swipeDown(velocity: .fast)
-                pause(1)
-            }
-            closeViewer()
-        }
+        guard openNewestPhoto() else { return }
 
-        if openPhoto(named: "IMG_2074") {
-            pause(5)
-            save("04-live-photo")
-            closeViewer()
-        }
-
-        // Phone photos open Cloudroll's own editor.
-        if openPhoto(named: nil) {
+        // The newest photos are the phone's, which open Cloudroll's own editor.
+        if app.buttons["Edit"].exists {
             pause(3)
-            save("05-phone-photo")
-            if tap(app.buttons["Edit"], "Edit") {
-                pause(4)
-                save("06-editor")
-                let cancel = app.buttons["Cancel"]
-                if cancel.exists { cancel.tap() }
-                pause(2)
-            }
-            closeViewer()
+            save("02-phone-photo")
+            app.buttons["Edit"].tap()
+            pause(4)
+            save("03-editor")
+            let cancel = app.buttons["Cancel"]
+            if cancel.waitForExistence(timeout: 5) { cancel.tap() }
+            let discard = app.buttons["Discard Changes"]
+            if discard.waitForExistence(timeout: 2) { discard.tap() }
+            pause(2)
+        } else {
+            problems.append("The newest photo had no Edit button")
         }
 
+        var gotLive = false
+        var gotLocation = false
+        for index in 0..<30 where !(gotLive && gotLocation) {
+            if index > 0 {
+                app.swipeLeft()
+                pause(3)
+            }
+            if !gotLive, app.buttons["Play Live Photo"].exists {
+                pause(2)
+                save("04-live-photo")
+                gotLive = true
+            }
+            if !gotLocation, app.buttons["Info"].exists {
+                app.buttons["Info"].tap()
+                pause(4)
+                if app.maps.firstMatch.exists {
+                    save("05-info")
+                    gotLocation = true
+                }
+                dismissInfo()
+            }
+        }
+        if !gotLive { problems.append("No Live Photo found in 30 photos") }
+        if !gotLocation { problems.append("No photo with a location found in 30 photos") }
+
+        if app.buttons["Close"].exists { app.buttons["Close"].tap() }
+        pause(2)
         if tap(app.buttons["Cloudroll Settings"], "Cloudroll Settings") {
             pause(3)
-            save("07-settings")
+            save("06-settings")
         }
-
-        try problems.joined(separator: "\n").write(to: outputDir.appending(path: "problems.txt"), atomically: true, encoding: .utf8)
     }
 
     // MARK: - Steps
 
-    /// Opens a timeline photo whose web element label contains `name`, or the first one.
-    private func openPhoto(named name: String?) -> Bool {
-        let images = app.webViews.firstMatch.images
-        let match: XCUIElement
-        if let name {
-            match = images.matching(NSPredicate(format: "label CONTAINS[c] %@", name)).firstMatch
-        } else {
-            match = images.firstMatch
-        }
-        guard match.waitForExistence(timeout: 10), match.isHittable else {
-            problems.append("No hittable photo for \(name ?? "first photo")")
-            save("missing-\(name ?? "first")")
-            return false
-        }
-        match.tap()
-        return app.buttons["Info"].waitForExistence(timeout: 15)
-    }
-
-    private func closeViewer() {
-        let close = app.buttons["Close"]
-        if close.exists { close.tap() }
-        pause(2)
-    }
-
-    private func allowPhotoAccessIfAsked() {
-        let ownPrompt = app.buttons["Allow access"]
-        if ownPrompt.waitForExistence(timeout: 5) { ownPrompt.tap() }
-        for label in ["Allow Full Access", "Allow Access to All Photos", "Allow"] {
-            let button = springboard.buttons[label]
-            if button.waitForExistence(timeout: 3) {
-                button.tap()
-                break
+    /// Taps "Retry" once if the first load times out, as it occasionally does on CI.
+    private func waitForTimeline() -> Bool {
+        let settings = app.buttons["Cloudroll Settings"]
+        let deadline = Date().addingTimeInterval(240)
+        var retried = false
+        while Date() < deadline {
+            if settings.exists { return true }
+            if !retried, app.buttons["Retry"].exists {
+                save("00-retry")
+                app.buttons["Retry"].tap()
+                retried = true
             }
+            allowPhotoAccess(wait: 0)
+            pause(2)
         }
+        return false
+    }
+
+    /// Cloudroll's own prompt comes first, then the system's, a little after the timeline loads.
+    private func allowPhotoAccess(wait: TimeInterval = 20) {
+        let deadline = Date().addingTimeInterval(wait)
+        repeat {
+            if app.buttons["Allow access"].exists { app.buttons["Allow access"].tap() }
+            for label in ["Allow Full Access", "Allow Access to All Photos"] where springboard.buttons[label].exists {
+                springboard.buttons[label].tap()
+                return
+            }
+            if wait > 0 { pause(1) }
+        } while Date() < deadline
+    }
+
+    /// The first thumbnail sits under the header and the first day's title.
+    private func openNewestPhoto() -> Bool {
+        let window = app.windows.firstMatch
+        for y in [0.22, 0.26, 0.30] {
+            window.coordinate(withNormalizedOffset: CGVector(dx: 0.12, dy: y)).tap()
+            if app.buttons["Info"].waitForExistence(timeout: 8) { return true }
+        }
+        problems.append("Couldn't open the newest photo")
+        save("missing-viewer")
+        return false
+    }
+
+    private func dismissInfo() {
+        let sheet = app.sheets.firstMatch
+        if sheet.exists {
+            sheet.swipeDown(velocity: .fast)
+        } else {
+            app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
+        }
+        pause(2)
     }
 
     @discardableResult
