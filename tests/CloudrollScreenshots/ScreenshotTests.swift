@@ -45,7 +45,7 @@ final class ScreenshotTests: XCTestCase {
             pause(3)
             save("02-viewer")
             if tap(app.buttons["Edit"], "Edit") {
-                waitForLoading()
+                waitForLoading(timeout: 90)
                 save("03-editor")
                 if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() }
                 let discard = app.buttons["Discard Changes"]
@@ -58,8 +58,9 @@ final class ScreenshotTests: XCTestCase {
         // The demo timeline is the same every run: the aquarium Live Photo is the only
         // photo of Aug 1, and the San Clemente railway photo (with a location) leads Jul 4.
         if openPhoto(at: CGVector(dx: 0.16, dy: 0.58), "Live Photo") {
-            pause(4)
-            if app.buttons["Play Live Photo"].exists {
+            // The motion part downloads after the photo; the button appears once it's ready.
+            if app.buttons["Play Live Photo"].waitForExistence(timeout: 45) {
+                pause(2)
                 save("04-live-photo")
             } else {
                 problems.append("The Aug 1 photo isn't a Live Photo")
@@ -71,7 +72,7 @@ final class ScreenshotTests: XCTestCase {
         if openPhoto(at: CGVector(dx: 0.5, dy: 0.76), "photo with a location") {
             pause(3)
             if tap(app.buttons["Info"], "Info") {
-                pause(5)
+                pause(12) // map tiles
                 if app.maps.firstMatch.exists {
                     save("05-info")
                 } else {
@@ -152,13 +153,16 @@ final class ScreenshotTests: XCTestCase {
     }
 
     private func dismissInfo() {
-        let sheet = app.sheets.firstMatch
-        if sheet.exists {
-            sheet.swipeDown(velocity: .fast)
-        } else {
-            app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
-        }
+        // Drag the sheet down by its grabber, which sits near the middle of the screen
+        // at the medium detent.
+        let window = app.windows.firstMatch
+        window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.48))
+            .press(forDuration: 0.1, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
         pause(2)
+        if !app.buttons["Close"].exists {
+            problems.append("The info sheet didn't close")
+            save("dbg-info-close")
+        }
     }
 
     @discardableResult
