@@ -25,6 +25,14 @@ jobs:
           for name in CLOUDROLL_DEMO_SERVER CLOUDROLL_DEMO_LOGIN CLOUDROLL_DEMO_APP_PASSWORD; do
             if [ -z "${!name}" ]; then echo "Missing secret $name" >&2; exit 1; fi
           done
+      # The app gives up on the server after 15 seconds; show how the runner fares.
+      - name: Check the demo server
+        run: |
+          for path in status.php index.php/apps/memories/api/describe index.php/apps/memories/; do
+            curl -s -o /dev/null -m 60 -u "$CLOUDROLL_DEMO_LOGIN:$CLOUDROLL_DEMO_APP_PASSWORD" \
+              -w "$path: %{http_code} connect %{time_connect}s total %{time_total}s\n" \
+              "$CLOUDROLL_DEMO_SERVER/$path" || echo "$path: curl failed ($?)"
+          done
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
