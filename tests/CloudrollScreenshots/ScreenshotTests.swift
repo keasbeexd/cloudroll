@@ -48,6 +48,8 @@ final class ScreenshotTests: XCTestCase {
             closeViewer()
         }
 
+        var liveFailed = false
+
         // The demo timeline is the same every run: the aquarium Live Photo is the only
         // photo of Aug 1, and the San Clemente railway photo (with a location) leads Jul 4.
         if openPhoto(at: CGVector(dx: 0.16, dy: 0.58), "Live Photo") {
@@ -57,6 +59,7 @@ final class ScreenshotTests: XCTestCase {
                 save("03-live-photo")
             } else {
                 problems.append("The Aug 1 photo isn't a Live Photo")
+                liveFailed = true
                 save("dbg-live")
             }
             closeViewer()
@@ -83,6 +86,15 @@ final class ScreenshotTests: XCTestCase {
             if tap(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "App Icon")).firstMatch, "App Icon") {
                 pause(3)
                 save("05-app-icons")
+            }
+            // The viewer logs why a Live Photo's motion didn't load.
+            if liveFailed {
+                app.navigationBars.buttons.firstMatch.tap()
+                pause(1)
+                if tap(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Diagnostics")).firstMatch, "Diagnostics") {
+                    pause(2)
+                    save("dbg-diagnostics")
+                }
             }
         } else {
             save("dbg-settings")
