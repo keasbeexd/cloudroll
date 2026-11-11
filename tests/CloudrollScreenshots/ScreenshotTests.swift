@@ -40,18 +40,11 @@ final class ScreenshotTests: XCTestCase {
         pause(12) // the phone photos join the timeline, then thumbnails load
         save("01-timeline")
 
-        // The newest photos are the phone's, which open Cloudroll's own editor.
+        // The newest photo is one of the phone's. (Cloudroll's editor never finishes
+        // loading in the CI simulator, so it isn't captured.)
         if openPhoto(at: CGVector(dx: 0.3, dy: 0.3), "newest phone photo") {
             pause(3)
             save("02-viewer")
-            if tap(app.buttons["Edit"], "Edit") {
-                waitForLoading(timeout: 90)
-                save("03-editor")
-                if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() }
-                let discard = app.buttons["Discard Changes"]
-                if discard.waitForExistence(timeout: 2) { discard.tap() }
-                pause(2)
-            }
             closeViewer()
         }
 
@@ -61,7 +54,7 @@ final class ScreenshotTests: XCTestCase {
             // The motion part downloads after the photo; the button appears once it's ready.
             if app.buttons["Play Live Photo"].waitForExistence(timeout: 45) {
                 pause(2)
-                save("04-live-photo")
+                save("03-live-photo")
             } else {
                 problems.append("The Aug 1 photo isn't a Live Photo")
                 save("dbg-live")
@@ -74,7 +67,7 @@ final class ScreenshotTests: XCTestCase {
             if tap(app.buttons["Info"], "Info") {
                 pause(12) // map tiles
                 if app.maps.firstMatch.exists {
-                    save("05-info")
+                    save("04-info")
                 } else {
                     problems.append("The Jul 4 photo's info has no map")
                     save("dbg-info")
@@ -84,9 +77,13 @@ final class ScreenshotTests: XCTestCase {
             closeViewer()
         }
 
+        // Settings itself shows the demo server's address, so the shot is the icon picker.
         if tap(app.buttons["Cloudroll Settings"], "Cloudroll Settings") {
-            pause(3)
-            save("06-settings")
+            pause(2)
+            if tap(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "App Icon")).firstMatch, "App Icon") {
+                pause(3)
+                save("05-app-icons")
+            }
         } else {
             save("dbg-settings")
         }
@@ -145,6 +142,12 @@ final class ScreenshotTests: XCTestCase {
 
     private func closeViewer() {
         if app.buttons["Close"].exists { app.buttons["Close"].tap() }
+        if !app.buttons["Cloudroll Settings"].waitForExistence(timeout: 5) {
+            // The viewer also closes with a downward swipe.
+            let window = app.windows.firstMatch
+            window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45))
+                .press(forDuration: 0.05, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
+        }
         if !app.buttons["Cloudroll Settings"].waitForExistence(timeout: 8) {
             problems.append("The viewer didn't close")
             save("dbg-close")
