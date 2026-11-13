@@ -7,7 +7,7 @@ Paste into App Store Connect when the app record exists. Field limits are Apple'
 | Field | Value |
 | --- | --- |
 | Platforms | iOS |
-| Name | Cloudroll |
+| Name | Cloudroll for Memories (plain "Cloudroll" is taken on the App Store; the home-screen name stays Cloudroll) |
 | Primary language | English (U.S.) |
 | Bundle ID | io.github.keasbeexd.cloudroll (register it first under Certificates, IDs & Profiles → Identifiers, as an explicit App ID; no extra capabilities needed) |
 | SKU | cloudroll-ios (internal only, never shown, can't be changed) |
@@ -17,7 +17,7 @@ Paste into App Store Connect when the app record exists. Field limits are Apple'
 
 | Field | Value |
 | --- | --- |
-| Name (30) | Cloudroll |
+| Name (30) | Cloudroll for Memories |
 | Subtitle (30) | Photos for your Nextcloud |
 | Bundle ID | io.github.keasbeexd.cloudroll |
 | Primary category | Photo & Video |
