@@ -1,3 +1,4 @@
+import StoreKitTest
 import XCTest
 
 /// Captures the App Store screenshots against the App Review demo account.
@@ -14,6 +15,9 @@ final class ScreenshotTests: XCTestCase {
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
     private var outputDir: URL!
     private var problems: [String] = []
+    /// Serves the three tips from Tips.storekit, so the tip jar shows its prices
+    /// (the App Review screenshot for the in-app purchases).
+    private var storeKit: SKTestSession?
 
     override func setUpWithError() throws {
         continueAfterFailure = true
@@ -30,6 +34,14 @@ final class ScreenshotTests: XCTestCase {
     }
 
     func testCaptureScreenshots() throws {
+        do {
+            let session = try SKTestSession(configurationFileNamed: "Tips")
+            session.resetToDefaultState()
+            session.disableDialogs = true
+            storeKit = session
+        } catch {
+            problems.append("StoreKit test session: \(error)")
+        }
         app.launch()
         guard waitForTimeline() else {
             save("00-not-loaded")
@@ -86,6 +98,14 @@ final class ScreenshotTests: XCTestCase {
             if tap(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "App Icon")).firstMatch, "App Icon") {
                 pause(3)
                 save("05-app-icons")
+                app.navigationBars.buttons.firstMatch.tap()
+                pause(1)
+            }
+            if tap(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Support Cloudroll")).firstMatch, "Support Cloudroll") {
+                pause(6) // products load
+                save("06-tip-jar")
+                app.navigationBars.buttons.firstMatch.tap()
+                pause(1)
             }
             // The viewer logs why a Live Photo's motion didn't load.
             if liveFailed {

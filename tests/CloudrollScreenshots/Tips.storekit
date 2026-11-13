@@ -1,0 +1,63 @@
+{
+  "identifier" : "6E1B5A7C",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "1.99",
+      "familyShareable" : false,
+      "internalID" : "6834540159",
+      "localizations" : [
+        {
+          "description" : "A tip for Cloudroll. It doesn't unlock anything.",
+          "displayName" : "Small tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "io.github.keasbeexd.cloudroll.tip.small",
+      "referenceName" : "Small tip",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "6834540708",
+      "localizations" : [
+        {
+          "description" : "A tip for Cloudroll. It doesn't unlock anything.",
+          "displayName" : "Medium tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "io.github.keasbeexd.cloudroll.tip.medium",
+      "referenceName" : "Medium tip",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : false,
+      "internalID" : "6834541367",
+      "localizations" : [
+        {
+          "description" : "A tip for Cloudroll. It doesn't unlock anything.",
+          "displayName" : "Large tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "io.github.keasbeexd.cloudroll.tip.large",
+      "referenceName" : "Large tip",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_storefront" : "USA"
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
