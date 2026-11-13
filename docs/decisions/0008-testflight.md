@@ -6,7 +6,7 @@ Date: 2026-10-27
 
 - A separate, manually started workflow (`.github/workflows/app-store-upload.yml`, named `testflight.yml` until 2026-11-13) archives a Release build and uploads it to App Store Connect. The push workflow keeps building the unsigned IPA for SideStore.
 - Signing is cloud-managed: `xcodebuild -allowProvisioningUpdates` with an App Store Connect API key creates and renews the distribution certificate and profile. Nothing else is stored in the repository.
-- Four repository secrets: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_KEY_P8` (the contents of the `.p8` file). The key needs the App Manager role.
+- Four repository secrets: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_KEY_P8` (the contents of the `.p8` file). The key needs the Admin role: App Manager keys get "Cloud signing permission error" because they can't create the cloud-managed distribution certificate (first upload, 2026-11-13).
 - The build number is a UTC timestamp (`YYYYMMDDHHMM`), which always increases. The version is typed in when the workflow is started.
 
 ## Why
@@ -17,7 +17,7 @@ Date: 2026-10-27
 ## Setup after enrollment
 
 1. Register the bundle ID `io.github.keasbeexd.cloudroll` (Certificates, IDs & Profiles) and create the app in App Store Connect with it.
-2. In App Store Connect, Users and Access → Integrations → App Store Connect API, create a team key with the App Manager role. Download the `.p8` once; note the key ID and issuer ID.
+2. In App Store Connect, Users and Access → Integrations → App Store Connect API, create a team key with the Admin role. Download the `.p8` once; note the key ID and issuer ID.
 3. Add the four secrets under the repository's Settings → Secrets and variables → Actions. The team ID is under Membership details in the developer account.
 4. Run Actions → App Store upload → Run workflow.
 
