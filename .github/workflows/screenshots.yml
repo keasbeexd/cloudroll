@@ -57,11 +57,15 @@ jobs:
         run: |
           # Unsplash photos via picsum.photos, free to use. They're dated today, so they
           # sit at the top of the timeline above the demo account's server photos.
+          # Optional: if picsum.photos is down, the timeline just shows server photos.
           mkdir -p phone-photos
           for id in 1018 1043 1050; do
-            curl -sfL -o "phone-photos/phone-$id.jpg" "https://picsum.photos/id/$id/1600/1200.jpg"
+            curl -sfL --retry 3 -m 30 -o "phone-photos/phone-$id.jpg" "https://picsum.photos/id/$id/1600/1200.jpg" \
+              || echo "Couldn't download photo $id"
           done
-          xcrun simctl addmedia "$DEVICE_ID" phone-photos/*.jpg
+          if ls phone-photos/*.jpg >/dev/null 2>&1; then
+            xcrun simctl addmedia "$DEVICE_ID" phone-photos/*.jpg
+          fi
       # Signed ad hoc ("Sign to Run Locally") rather than unsigned: the simulator only
       # grants Keychain access to a signed app.
       - name: Capture
