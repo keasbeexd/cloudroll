@@ -94,6 +94,9 @@ targets:
     platform: iOS
     sources:
       - path: ../tests/CloudrollScreenshots
+        excludes: ["*.storekit"]
+      - path: ../tests/CloudrollScreenshots/Tips.storekit
+        buildPhase: resources
     dependencies:
       - target: Cloudroll
     settings:
