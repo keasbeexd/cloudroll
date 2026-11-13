@@ -48,6 +48,8 @@ Cloudroll is free, with every feature included. It's funded by optional donation
 
 ## Phase 4: Updates
 
+- [ ] iPhone Duo support: build with the iOS 27.1 SDK or later, check the layout on its displays (glass bars, viewer, editor), and add iPhone Duo screenshots so the product page shows the iPhone Duo badge
+- [ ] Product page header asset (5244 x 2950 or 3840 x 1646) for the App Store "Header and Search Results" slot
 - [ ] Home screen widgets ("On this day", random photo)
 - [ ] Offline albums served by the local server
 - [ ] Shortcuts and Siri actions
