@@ -1,7 +1,8 @@
-name: TestFlight
+name: App Store upload
 
-# Started by hand (Actions → TestFlight → Run workflow). Archives a signed build and
-# uploads it to App Store Connect, where it appears in TestFlight after processing.
+# Started by hand (Actions → App Store upload → Run workflow). Archives a signed build and
+# uploads it to App Store Connect. After processing it can be submitted for review
+# (or handed to TestFlight testers first).
 # Signing is cloud-managed by Xcode with an App Store Connect API key, so no
 # certificates or profiles are stored here. See docs/decisions/0008-testflight.md.
 on:

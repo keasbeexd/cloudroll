@@ -14,7 +14,7 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
 targets:
   Cloudroll:
@@ -22,7 +22,10 @@ targets:
     platform: iOS
     sources:
       - path: ../src
-        excludes: ["**/*.js"]
+        excludes: ["**/*.js", "PrivacyInfo.xcprivacy"]
+      # Apple's privacy manifest; must ship as a resource at the bundle root.
+      - path: ../src/PrivacyInfo.xcprivacy
+        buildPhase: resources
       # Injected into the shell page at runtime, so they ship as resources.
       - path: ../src/WebView/shell-navigation.js
         buildPhase: resources

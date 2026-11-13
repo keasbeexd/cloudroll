@@ -2,6 +2,17 @@
 
 Paste into App Store Connect when the app record exists. Field limits are Apple's and are shown in brackets.
 
+## New App dialog (My Apps → + → New App)
+
+| Field | Value |
+| --- | --- |
+| Platforms | iOS |
+| Name | Cloudroll |
+| Primary language | English (U.S.) |
+| Bundle ID | io.github.keasbeexd.cloudroll (register it first under Certificates, IDs & Profiles → Identifiers, as an explicit App ID; no extra capabilities needed) |
+| SKU | cloudroll-ios (internal only, never shown, can't be changed) |
+| User access | Full Access |
+
 ## App information
 
 | Field | Value |
