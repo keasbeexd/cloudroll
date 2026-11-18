@@ -32,13 +32,16 @@ Cloudroll is free, with every feature included. It's funded by optional donation
 - [x] Multiple servers or accounts: switch in Settings > Accounts, each with its own web data ([0007](decisions/0007-multiple-accounts.md))
 - [x] Batch save originals to Camera Roll (Save to Photos in the selection toolbar)
 - [x] App icon (reel cloud, with dark and tinted versions) and ten alternate icons in Settings, rendered from `design/icons/` by `scripts/render-icons.sh`.
-- [ ] Tip jar (StoreKit 2 consumables) in Settings, plus a one-time ask after 30 days. Code done (`TipJar`, `TipJarView`); needs the three products in App Store Connect (see 0006) before it can be tested in TestFlight
+- [x] Tip jar (StoreKit 2 consumables) in Settings, plus a one-time ask after 30 days
 - [x] `FUNDING.yml` (GitHub Sponsors, Ko-fi, account-wide in `keasbeexd/.github`) and a README Support section with costs and what donations paid for
 
 ## Phase 3: App Store
 
+Released 2026-11-18: https://apps.apple.com/us/app/cloudroll-for-memories/id6834525872 (174 countries and regions; China mainland left out because of its ICP filing requirement).
+
+
 - [x] Apple Developer Program enrollment (individual)
-- [ ] Upload with `.github/workflows/app-store-upload.yml` (needs four secrets, [0008](decisions/0008-testflight.md)); 1.0 goes straight to App Review, TestFlight starts with the next update
+- [x] Upload with `.github/workflows/app-store-upload.yml` (needs four secrets, [0008](decisions/0008-testflight.md)); 1.0 goes straight to App Review, TestFlight starts with the next update
 - [x] Privacy manifest (`src/PrivacyInfo.xcprivacy`): no tracking, no data collected, reasons for UserDefaults and file attributes
 - [x] App Store listing draft, privacy label answers and review notes ([docs/app-store/listing.md](app-store/listing.md))
 - [ ] Register the bundle ID `io.github.keasbeexd.cloudroll` (reverse of keasbeexd.github.io, where the site lives; persisted identifiers such as the Keychain services and the PhotoKit edit format keep their `app.cloudroll` prefix)
