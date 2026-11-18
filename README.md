@@ -6,7 +6,9 @@ Cloudroll is free and open source, with no ads and no tracking. It's supported b
 
 ## Status
 
-In testing, not on the App Store yet. With Memories 9+ Cloudroll wraps Memories in native iOS controls:
+**[Get Cloudroll on the App Store](https://apps.apple.com/us/app/cloudroll-for-memories/id6834525872)** (free, iOS 17+).
+
+With Memories 9+ Cloudroll wraps Memories in native iOS controls:
 
 - Your iPhone's photos in the timeline next to the ones on Nextcloud, with upload, delete (from the phone, Nextcloud or both), share and Save to Photos
 - A native photo viewer with Live Photos, an info panel and smooth swiping
@@ -37,7 +39,7 @@ The Xcode project is generated from `config/project.yml` and isn't committed.
 
 Donations are optional and help cover development costs and the hours that go into Cloudroll ([0006](docs/decisions/0006-donations.md)).
 
-- In the app: the tip jar in Settings (coming with the App Store release)
+- In the app: Settings > Support Cloudroll (one-time tips through the App Store)
 - Outside the app: [GitHub Sponsors](https://github.com/sponsors/keasbeexd) or [Ko-fi](https://ko-fi.com/keasbeexd)
 
 What it costs to run each year:
