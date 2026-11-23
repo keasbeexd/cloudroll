@@ -75,6 +75,7 @@ jobs:
           xcrun simctl help 2>&1 | grep -iE "fold|display|posture|screen" || echo "No display subcommands listed"
           xcrun simctl list devicetypes | grep -i duo || true
           xcrun simctl io "$DEVICE_ID" enumerate 2>&1 || true
+          xcrun simctl help io 2>&1 | grep -iE -A3 "screenshot|display" || true
       - name: Add phone photos
         run: |
           # Unsplash photos via picsum.photos, free to use. They're dated today, so they

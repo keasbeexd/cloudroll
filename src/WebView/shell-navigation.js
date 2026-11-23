@@ -9,6 +9,9 @@
   const style = document.createElement('style');
   style.textContent = `
     html.${NATIVE_CLASS} #mobile-nav { display: none !important; }
+    /* On iPad, Memories also shows its desktop sidebar (Nextcloud's app navigation);
+       the native tabs and header replace it, as on iPhone. */
+    html.${NATIVE_CLASS} .app-navigation:has(> #app-navigation-vue) { display: none !important; }
     /* Let content run under the glass bar... */
     html.${NATIVE_CLASS} #app-content-vue > .router-outlet.has-nav { height: 100% !important; }
     /* ...while scrollers keep their last row reachable above it. */
