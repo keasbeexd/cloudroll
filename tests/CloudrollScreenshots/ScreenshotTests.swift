@@ -164,7 +164,7 @@ final class ScreenshotTests: XCTestCase {
                 // 13-inch iPad, portrait
                 newest = CGVector(dx: 0.2, dy: 0.15)
                 live = CGVector(dx: 0.08, dy: 0.3)
-                located = CGVector(dx: 0.2, dy: 0.42)
+                located = CGVector(dx: 0.2, dy: 0.5)
             } else if size.height < 800 {
                 // iPhone Duo, outer display: the Jul 4 photo shows just above the tab bar
                 newest = CGVector(dx: 0.3, dy: 0.3)
