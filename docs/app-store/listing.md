@@ -40,7 +40,7 @@ Your Nextcloud photos and the photos on your iPhone, together in one timeline, w
 
 ## Description (4000)
 
-Cloudroll is an iPhone app for Nextcloud Memories. It brings the photos on your own Nextcloud server and the photos on your iPhone together in one timeline, and adds the parts that should feel like iOS.
+Cloudroll is an iPhone and iPad app for Nextcloud Memories. It brings the photos on your own Nextcloud server and the photos on your iPhone together in one timeline, and adds the parts that should feel like iOS.
 
 ONE TIMELINE
 Photos on your iPhone show up next to the ones on your server. Upload what's missing, and delete from the phone, the server or both.
@@ -71,9 +71,13 @@ Cloudroll is not affiliated with Nextcloud GmbH or the Memories project.
 
 nextcloud,memories,photos,gallery,self-hosted,photo backup,live photos,timeline,private cloud,album
 
-## What's New (first version)
+## What's New
 
-First release.
+1.0: First release.
+
+1.1:
+
+Cloudroll now runs on iPad and fills both screens on iPhone Duo. Alternate app icons work on iPad too. And if you're enjoying Cloudroll, there's a new Rate Cloudroll option in Settings.
 
 ## App Privacy
 
