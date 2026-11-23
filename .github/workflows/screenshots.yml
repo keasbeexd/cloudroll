@@ -13,12 +13,18 @@ on:
         description: "Simulator name ends with (e.g. Pro Max, or iPad Pro 13-inch (M5))"
         required: true
         default: Pro Max
+      runner:
+        description: "Runner: macos-26 (iPhone Pro Max, iPad) or xcode-27 (iPhone Duo)"
+        required: true
+        default: macos-26
+        type: choice
+        options: [macos-26, xcode-27]
   push:
     branches: [screenshots]
 
 jobs:
   capture:
-    runs-on: macos-26
+    runs-on: ${{ inputs.runner || 'macos-26' }}
     env:
       CLOUDROLL_DEMO_SERVER: ${{ secrets.CLOUDROLL_DEMO_SERVER }}
       CLOUDROLL_DEMO_LOGIN: ${{ secrets.CLOUDROLL_DEMO_LOGIN }}
@@ -61,6 +67,14 @@ jobs:
           xcrun simctl status_bar "$DEVICE_ID" override --time 9:41 --dataNetwork wifi --wifiMode active \
             --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
           xcrun simctl privacy "$DEVICE_ID" grant photos io.github.keasbeexd.cloudroll || true
+      # iPhone Duo has an outer and an inner display. Log what this simctl offers for
+      # switching between them, so the capture can be pointed at each one.
+      - name: Describe the iPhone Duo displays
+        if: contains(inputs.device, 'Duo')
+        run: |
+          xcrun simctl help 2>&1 | grep -iE "fold|display|posture|screen" || echo "No display subcommands listed"
+          xcrun simctl list devicetypes | grep -i duo || true
+          xcrun simctl io "$DEVICE_ID" enumerate 2>&1 || true
       - name: Add phone photos
         run: |
           # Unsplash photos via picsum.photos, free to use. They're dated today, so they
