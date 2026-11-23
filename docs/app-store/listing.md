@@ -94,4 +94,7 @@ The three tips in [0006](../decisions/0006-donations.md#app-store-connect-setup)
 
 ## Screenshots
 
+From 1.1 the app is universal, so the listing needs 13-inch iPad screenshots (2064 x 2752 or 2048 x 2732) next to the iPhone ones. iPhone Duo screenshots (outer 1398 x 2034, inner 2007 x 2853) add the iPhone Duo badge and are required from April 2027 ([0009](../decisions/0009-ipad-and-iphone-duo.md)).
+
+
 Needed for 6.9" iPhone (1320 x 2868). Generate in the simulator on the CI macOS runner against the demo account once it exists. Suggested set: timeline with phone and server photos, the viewer with the info panel, a Live Photo, the editor, the accounts list in Settings.

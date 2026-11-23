@@ -7,8 +7,8 @@ on:
 
 jobs:
   build:
-    # Xcode 26 builds the native bars with Liquid Glass.
-    runs-on: macos-26
+    # Xcode 27.1 (iOS 27.1 SDK): needed for the full iPhone Duo display (decision 0009).
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
       - name: Install XcodeGen
@@ -39,6 +39,21 @@ jobs:
           mkdir -p ipa/Payload
           cp -R build/Build/Products/Release-iphoneos/Cloudroll.app ipa/Payload/
           (cd ipa && zip -qry ../Cloudroll-unsigned.ipa Payload)
+      # iPad only reads alternate icons from CFBundleIcons~ipad, which the asset compiler
+      # writes for universal targets (decision 0009). Catch a regression before it ships.
+      - name: Check the alternate icons are listed for iPhone and iPad
+        run: |
+          plist=build/Build/Products/Release-iphoneos/Cloudroll.app/Info.plist
+          /usr/libexec/PlistBuddy -c "Print :UIDeviceFamily" "$plist"
+          for key in CFBundleIcons 'CFBundleIcons~ipad'; do
+            names=$(/usr/libexec/PlistBuddy -c "Print :$key:CFBundleAlternateIcons" "$plist" 2>/dev/null \
+              | grep -o 'AppIcon-[A-Za-z]*' | sort -u | wc -l | tr -d ' ')
+            echo "$key: $names alternate icons"
+            if [ "$names" -lt 10 ]; then
+              echo "$key is missing alternate icons" >&2
+              exit 1
+            fi
+          done
       # Only the maintainer can decrypt the artifact (scripts/fetch-ipa.sh); the
       # recipient is a public key, so no secret is stored on GitHub.
       - name: Encrypt IPA

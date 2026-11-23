@@ -1,6 +1,6 @@
 name: Screenshots
 
-# App Store screenshots (6.9" iPhone, 1320 x 2868) against the App Review demo account.
+# App Store screenshots (6.9" iPhone or 13" iPad, chosen when started) against the App Review demo account.
 # Started by hand (Actions → Screenshots → Run workflow) or by pushing to the screenshots branch.
 # Needs three secrets: CLOUDROLL_DEMO_SERVER, CLOUDROLL_DEMO_LOGIN and
 # CLOUDROLL_DEMO_APP_PASSWORD (an app password for the demo user, revocable in its
@@ -8,12 +8,23 @@ name: Screenshots
 # (src/Auth/ScreenshotAccount.swift); no other build has it.
 on:
   workflow_dispatch:
+    inputs:
+      device:
+        description: "Simulator name ends with (e.g. Pro Max, or iPad Pro 13-inch (M5))"
+        required: true
+        default: Pro Max
+      runner:
+        description: "Runner: macos-26 (iPhone Pro Max, iPad) or xcode-27 (iPhone Duo)"
+        required: true
+        default: macos-26
+        type: choice
+        options: [macos-26, xcode-27]
   push:
     branches: [screenshots]
 
 jobs:
   capture:
-    runs-on: macos-26
+    runs-on: ${{ inputs.runner || 'macos-26' }}
     env:
       CLOUDROLL_DEMO_SERVER: ${{ secrets.CLOUDROLL_DEMO_SERVER }}
       CLOUDROLL_DEMO_LOGIN: ${{ secrets.CLOUDROLL_DEMO_LOGIN }}
@@ -37,13 +48,16 @@ jobs:
         run: brew install xcodegen
       - name: Generate project
         run: xcodegen generate --spec config/project.yml --project .
-      - name: Boot a 6.9-inch iPhone
+      - name: Boot the simulator
+        env:
+          DEVICE_SUFFIX: ${{ inputs.device || 'Pro Max' }}
         run: |
-          # The newest Pro Max on the runner; its screenshots are 1320 x 2868.
+          # The newest matching simulator: a Pro Max gives 1320 x 2868 iPhone shots, an
+          # iPad Pro 13-inch gives 2064 x 2752 iPad shots (required for a universal app).
           DEVICE_ID=$(xcrun simctl list devices available -j \
-            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | endswith("Pro Max"))] | last | .udid')
+            | jq -r --arg suffix "$DEVICE_SUFFIX" '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | endswith($suffix))] | last | .udid')
           if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
-            echo "No Pro Max simulator on this runner" >&2
+            echo "No simulator ending in \"$DEVICE_SUFFIX\" on this runner" >&2
             xcrun simctl list devices available
             exit 1
           fi
@@ -53,6 +67,15 @@ jobs:
           xcrun simctl status_bar "$DEVICE_ID" override --time 9:41 --dataNetwork wifi --wifiMode active \
             --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
           xcrun simctl privacy "$DEVICE_ID" grant photos io.github.keasbeexd.cloudroll || true
+      # iPhone Duo has an outer and an inner display. Log what this simctl offers for
+      # switching between them, so the capture can be pointed at each one.
+      - name: Describe the iPhone Duo displays
+        if: contains(inputs.device, 'Duo')
+        run: |
+          xcrun simctl help 2>&1 | grep -iE "fold|display|posture|screen" || echo "No display subcommands listed"
+          xcrun simctl list devicetypes | grep -i duo || true
+          xcrun simctl io "$DEVICE_ID" enumerate 2>&1 || true
+          xcrun simctl help io 2>&1 | grep -iE -A3 "screenshot|display" || true
       - name: Add phone photos
         run: |
           # Unsplash photos via picsum.photos, free to use. They're dated today, so they

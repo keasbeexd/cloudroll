@@ -20,7 +20,7 @@ With older Memories versions it shows Memories' own web interface. See the [road
 
 ## Requirements
 
-- iOS 17+
+- iPhone or iPad with iOS 17+ (iPhone Duo is fully supported)
 - Nextcloud with Memories installed. Native features will need Memories 9+, which requires Nextcloud 34+.
 
 ## Building

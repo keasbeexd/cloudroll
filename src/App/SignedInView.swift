@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 import UIKit
 
@@ -7,6 +8,7 @@ struct SignedInView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(AppLock.self) private var lock
+    @Environment(\.requestReview) private var requestReview
     @State private var source: MemoriesSource?
     @State private var loadError: String?
     @State private var toast: String?
@@ -16,6 +18,8 @@ struct SignedInView: View {
     @State private var viewer = ViewerController()
     @State private var showsSettings = false
     @State private var showsTipAsk = false
+    /// Changes each time the timeline comes to the front, for the tip ask and review prompt.
+    @State private var visit = UUID()
     @State private var showsPhotoAccess = false
     @AppStorage("photoAccess.asked") private var askedForPhotoAccess = false
     @AppStorage(TimelineSource.storageKey) private var timelineSource = TimelineSource.all
@@ -54,7 +58,10 @@ struct SignedInView: View {
                 .presentationDetents([.medium])
             }
             .task(id: source) { await offerPhotoAccess() }
-            .task(id: source) { await askForTipOnce() }
+            .task(id: visit) { await askForSupportOnce() }
+            .onChange(of: source) { _, source in
+                if source != nil { visit = UUID() }
+            }
             .sheet(isPresented: $showsTipAsk) {
                 NavigationStack {
                     TipJarView(onDismiss: { showsTipAsk = false })
@@ -69,9 +76,9 @@ struct SignedInView: View {
                 ),
                 titleVisibility: .visible
             ) {
-                Button("Delete from This iPhone and Nextcloud", role: .destructive) { answerDelete(.both) }
+                Button("Delete from This \(ThisDevice.name) and Nextcloud", role: .destructive) { answerDelete(.both) }
                 Button("Delete from Nextcloud Only", role: .destructive) { answerDelete(.cloudOnly) }
-                Button("Delete from This iPhone Only", role: .destructive) { answerDelete(.phoneOnly) }
+                Button("Delete from This \(ThisDevice.name) Only", role: .destructive) { answerDelete(.phoneOnly) }
                 Button("Cancel", role: .cancel) { answerDelete(.cancel) }
             }
             .onChange(of: timelineSource) {
@@ -80,6 +87,9 @@ struct SignedInView: View {
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, case .shell = source else { return }
                 Task { await resumeShell() }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active, source != nil { visit = UUID() }
             }
             .alert("Couldn't load Memories", isPresented: Binding(
                 get: { loadError != nil },
@@ -280,22 +290,35 @@ struct SignedInView: View {
         }
     }
 
-    /// Once, 30 days after first use, and only when nothing else is going on.
-    private func askForTipOnce() async {
-        guard source != nil, TipJar.shared.shouldAsk else { return }
+    /// Each visit to the timeline counts toward the review prompt. At most one ask per
+    /// visit: the one-time tip ask (30 days after first use) wins over the review prompt,
+    /// and neither interrupts anything in progress.
+    private func askForSupportOnce() async {
+        guard source != nil else { return }
+        ReviewPrompt.recordSession()
+        let asksForTip = TipJar.shared.shouldAsk
+        guard asksForTip || ReviewPrompt.shouldAsk() else { return }
         // Let the timeline settle before asking.
-        guard (try? await Task.sleep(for: .seconds(20))) != nil else { return }
-        let busy = UploadCenter.shared.progress != nil
+        guard (try? await Task.sleep(for: .seconds(20))) != nil, !isBusy, scenePhase == .active else { return }
+        if asksForTip {
+            TipJar.shared.markAsked()
+            showsTipAsk = true
+        } else {
+            ReviewPrompt.markAsked()
+            requestReview()
+        }
+    }
+
+    private var isBusy: Bool {
+        UploadCenter.shared.progress != nil
             || ShareCenter.shared.busyMessage != nil
             || DeleteChoiceCenter.shared.pendingCount != nil
             || viewer.state.open
             || selection.state.active
             || showsSettings
             || showsPhotoAccess
+            || showsTipAsk
             || lock.isLocked
-        guard !busy, scenePhase == .active else { return }
-        TipJar.shared.markAsked()
-        showsTipAsk = true
     }
 
     private func resumeShell() async {
@@ -354,8 +377,8 @@ struct SignedInView: View {
     private var deleteQuestion: String {
         let count = DeleteChoiceCenter.shared.pendingCount ?? 0
         return count == 1
-            ? "This photo is on this iPhone and on Nextcloud."
-            : "\(count) of these photos are on this iPhone and on Nextcloud."
+            ? "This photo is on this \(ThisDevice.name) and on Nextcloud."
+            : "\(count) of these photos are on this \(ThisDevice.name) and on Nextcloud."
     }
 
     private func answerDelete(_ choice: DeleteChoice) {

@@ -14,7 +14,7 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "1.0"
+    MARKETING_VERSION: "1.1"
     CURRENT_PROJECT_VERSION: "1"
 targets:
   Cloudroll:
@@ -51,24 +51,35 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        # iPad multitasking (Split View, Stage Manager) needs every orientation.
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # One window: the local server, page state and upload/share centers exist once
+        # per app, so a second iPad window would fight the first over them.
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
         ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: Cloudroll uses the camera when you take a photo or video to upload to your Nextcloud.
         NSMicrophoneUsageDescription: Cloudroll records sound with videos you take to upload to your Nextcloud.
-        NSPhotoLibraryAddUsageDescription: Cloudroll saves the photos and videos you choose from your Nextcloud to this iPhone.
+        NSPhotoLibraryAddUsageDescription: Cloudroll saves the photos and videos you choose from your Nextcloud to this device.
         NSFaceIDUsageDescription: Cloudroll uses Face ID to unlock when you've turned on the lock in its settings.
-        NSPhotoLibraryUsageDescription: Cloudroll shows the photos and videos on this iPhone in your Memories timeline, next to the ones on your Nextcloud.
+        NSPhotoLibraryUsageDescription: Cloudroll shows the photos and videos on this device in your Memories timeline, next to the ones on your Nextcloud.
         # The web view loads the shell over plain http from 127.0.0.1; everything
         # leaving the device still goes over https.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
     settings:
       base:
-        # Placeholder until the App Store bundle ID is registered.
         PRODUCT_BUNDLE_IDENTIFIER: io.github.keasbeexd.cloudroll
         # XcodeGen writes info.path next to this spec but would reference it
         # relative to the generated project, which lives in the repo root.
         INFOPLIST_FILE: config/Info.plist
-        TARGETED_DEVICE_FAMILY: "1"
+        # iPhone and iPad. On iPad the alternate icons are only listed in CFBundleIcons~ipad,
+        # which the asset compiler writes for universal targets only.
+        TARGETED_DEVICE_FAMILY: "1,2"
         # Icons are rendered from design/icons/ by scripts/render-icons.sh. The alternates
         # are offered in Settings (AppIconPicker.swift); the compiler adds them to Info.plist.
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

@@ -54,7 +54,8 @@ final class ScreenshotTests: XCTestCase {
 
         // The newest photo is one of the phone's. (Cloudroll's editor never finishes
         // loading in the CI simulator, so it isn't captured.)
-        if openPhoto(at: CGVector(dx: 0.3, dy: 0.3), "newest phone photo") {
+        let spots = Spots(window: app.windows.firstMatch.frame.size)
+        if openPhoto(at: spots.newest, "newest phone photo") {
             pause(3)
             save("02-viewer")
             closeViewer()
@@ -64,7 +65,7 @@ final class ScreenshotTests: XCTestCase {
 
         // The demo timeline is the same every run: the aquarium Live Photo is the only
         // photo of Aug 1, and the San Clemente railway photo (with a location) leads Jul 4.
-        if openPhoto(at: CGVector(dx: 0.16, dy: 0.58), "Live Photo") {
+        if openPhoto(at: spots.live, "Live Photo") {
             // The motion part downloads after the photo; the button appears once it's ready.
             if app.buttons["Play Live Photo"].waitForExistence(timeout: 45) {
                 pause(2)
@@ -77,7 +78,7 @@ final class ScreenshotTests: XCTestCase {
             closeViewer()
         }
 
-        if openPhoto(at: CGVector(dx: 0.5, dy: 0.76), "photo with a location") {
+        if openPhoto(at: spots.located, "photo with a location") {
             pause(3)
             if tap(app.buttons["Info"], "Info") {
                 pause(12) // map tiles
@@ -98,18 +99,18 @@ final class ScreenshotTests: XCTestCase {
             if tap(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "App Icon")).firstMatch, "App Icon") {
                 pause(3)
                 save("05-app-icons")
-                app.navigationBars.buttons.firstMatch.tap()
+                goBack()
                 pause(1)
             }
             if tap(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Support Cloudroll")).firstMatch, "Support Cloudroll") {
                 pause(6) // products load
                 save("06-tip-jar")
-                app.navigationBars.buttons.firstMatch.tap()
+                goBack()
                 pause(1)
             }
             // The viewer logs why a Live Photo's motion didn't load.
             if liveFailed {
-                app.navigationBars.buttons.firstMatch.tap()
+                goBack()
                 pause(1)
                 if tap(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Diagnostics")).firstMatch, "Diagnostics") {
                     pause(2)
@@ -152,6 +153,44 @@ final class ScreenshotTests: XCTestCase {
             }
             if wait > 0 { pause(1) }
         } while Date() < deadline
+    }
+
+    /// Where the timeline's thumbnails sit, by screen. The web timeline lays out rows
+    /// to the width, so each screen size needs its own spots (normalized to the window).
+    private struct Spots {
+        let newest: CGVector, live: CGVector, located: CGVector
+        init(window size: CGSize) {
+            if size.width >= 700 {
+                // 13-inch iPad, portrait
+                newest = CGVector(dx: 0.2, dy: 0.15)
+                live = CGVector(dx: 0.08, dy: 0.3)
+                located = CGVector(dx: 0.2, dy: 0.5)
+            } else if size.height < 800 {
+                // iPhone Duo, outer display: the Jul 4 photo shows just above the tab bar
+                newest = CGVector(dx: 0.3, dy: 0.3)
+                live = CGVector(dx: 0.14, dy: 0.66)
+                located = CGVector(dx: 0.5, dy: 0.835)
+            } else {
+                // 6.9-inch iPhone
+                newest = CGVector(dx: 0.3, dy: 0.3)
+                live = CGVector(dx: 0.16, dy: 0.58)
+                located = CGVector(dx: 0.5, dy: 0.76)
+            }
+        }
+    }
+
+    /// The back button of a pushed settings page. On iPhone Duo's outer display it sits
+    /// outside the navigation bar, so it's found by its identifier first.
+    private func goBack() {
+        let back = app.buttons["BackButton"]
+        if back.exists, back.isHittable {
+            back.tap()
+        } else if app.navigationBars.buttons.firstMatch.exists {
+            app.navigationBars.buttons.firstMatch.tap()
+        } else {
+            problems.append("No back button")
+            save("dbg-back")
+        }
     }
 
     /// Taps a thumbnail by its place on screen; the web timeline's photos aren't in the

@@ -109,7 +109,7 @@ enum BridgeEndpoints {
                     if try await library.delete(auids: auids, dry: false) > 0 {
                         await PageState.shared.libraryChanged()
                     }
-                    return aborted("Deleted on this iPhone only.")
+                    return aborted("Deleted on this \(ThisDevice.name) only.")
                 case .cancel:
                     return aborted("Cancelled.")
                 }

@@ -19,7 +19,7 @@ enum TimelineSource: String, CaseIterable, Identifiable {
         switch self {
         case .all: "All photos"
         case .cloud: "Nextcloud only"
-        case .phone: "This iPhone only"
+        case .phone: "This \(ThisDevice.name) only"
         }
     }
 

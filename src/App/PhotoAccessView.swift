@@ -9,9 +9,9 @@ struct PhotoAccessView: View {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 44, weight: .medium))
                 .foregroundStyle(.tint)
-            Text("Show this iPhone's photos?")
+            Text("Show this \(ThisDevice.name)'s photos?")
                 .font(.title2.weight(.semibold))
-            Text("Cloudroll can show the photos and videos on this iPhone in your Memories timeline. Photos already on your server appear only once. Nothing is uploaded.")
+            Text("Cloudroll can show the photos and videos on this \(ThisDevice.name) in your Memories timeline. Photos already on your server appear only once. Nothing is uploaded.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
             VStack(spacing: 10) {
