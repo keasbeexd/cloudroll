@@ -56,9 +56,14 @@ Released 2026-11-18: https://apps.apple.com/us/app/cloudroll-for-memories/id6834
 - [x] iPad: universal app, all orientations, one window; the icon picker works on iPad ([0009](decisions/0009-ipad-and-iphone-duo.md))
 - [x] iPhone Duo: built with the iOS 27.1 SDK so the app fills the inner display ([0009](decisions/0009-ipad-and-iphone-duo.md))
 - [x] Rating prompt and a Rate Cloudroll row in Settings ([0010](decisions/0010-review-prompt.md))
-- [ ] Check the layout on iPad (portrait, landscape, Split View, Stage Manager) and iPhone Duo (closed, open)
-- [ ] 13-inch iPad screenshots (required for a universal app); iPhone Duo screenshots (badge now, required from April 2027)
+- [x] iPad: Memories' desktop sidebar hidden under the native tabs and header, as on iPhone
+- [ ] Check the layout on iPad (portrait checked in the simulator; landscape, Split View, Stage Manager not yet) and iPhone Duo (closed checked in the simulator; open not yet)
+- [x] 13-inch iPad screenshots (required for a universal app) and iPhone Duo outer display screenshots (badge now, required from April 2027), from the Screenshots workflow; the Duo simulator can't be opened from CI, so there are no inner display shots
 - [x] Product page header asset (5244 x 2950) in the App Store "Header and Search Results" slot
+
+### 1.2
+
+- [ ] Public TestFlight link (external testing group) and a "Join the beta" row in Settings, plus the link in the README and on the site
 
 ### Later
 
