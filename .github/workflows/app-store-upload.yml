@@ -15,7 +15,8 @@ on:
 
 jobs:
   upload:
-    runs-on: macos-26
+    # Xcode 27.1 (iOS 27.1 SDK): needed for the full iPhone Duo display (decision 0009).
+    runs-on: xcode-27
     env:
       TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}

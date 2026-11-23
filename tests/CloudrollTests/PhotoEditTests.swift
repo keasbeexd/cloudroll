@@ -131,6 +131,6 @@ final class PhotoEditTests: XCTestCase {
     func testSaveSummary() {
         XCTAssertEqual(ShareCenter.saveSummary(saved: 1, skipped: 0, failed: 0), "Saved 1 item to Photos.")
         XCTAssertEqual(ShareCenter.saveSummary(saved: 3, skipped: 2, failed: 1),
-                       "Saved 3 items to Photos, 2 already on this iPhone, 1 couldn't be downloaded.")
+                       "Saved 3 items to Photos, 2 already on this \(ThisDevice.name), 1 couldn't be downloaded.")
     }
 }

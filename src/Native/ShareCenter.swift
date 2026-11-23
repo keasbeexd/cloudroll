@@ -86,7 +86,7 @@ final class ShareCenter {
         }
         let skipped = blobs.count - remote.count
         guard !remote.isEmpty else {
-            notice = blobs.count == 1 ? "This photo is already on this iPhone." : "These photos are already on this iPhone."
+            notice = blobs.count == 1 ? "This photo is already on this \(ThisDevice.name)." : "These photos are already on this \(ThisDevice.name)."
             return
         }
         guard await PhotoLibrary.requestAddAccess() else {
@@ -116,7 +116,7 @@ final class ShareCenter {
     nonisolated static func saveSummary(saved: Int, skipped: Int, failed: Int) -> String {
         var parts = [saved == 1 ? "Saved 1 item to Photos" : "Saved \(saved) items to Photos"]
         if skipped > 0 {
-            parts.append("\(skipped) already on this iPhone")
+            parts.append("\(skipped) already on this \(ThisDevice.name)")
         }
         if failed > 0 {
             parts.append("\(failed) couldn't be downloaded")

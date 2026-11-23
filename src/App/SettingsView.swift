@@ -22,6 +22,9 @@ struct SettingsView: View {
                     } label: {
                         Label("Support Cloudroll", systemImage: "heart")
                     }
+                    Link(destination: ReviewPrompt.writeReviewURL) {
+                        Label("Rate Cloudroll", systemImage: "star")
+                    }
                 }
 
                 Section {
@@ -89,7 +92,7 @@ struct SettingsView: View {
                     Task { await model.signOut(account.id) }
                 }
             } message: { _ in
-                Text("Photos on this iPhone aren't touched. Cloudroll forgets this account and revokes its app password.")
+                Text("Photos on this \(ThisDevice.name) aren't touched. Cloudroll forgets this account and revokes its app password.")
             }
         }
     }
